@@ -129,8 +129,9 @@
             memcpy(uctxt, &(curPCB->uctxt), sizeof(UserContext));
         }
     }
-}
 */
+}
+
  
  
  /**
@@ -179,11 +180,11 @@
          // }
          
          TracePrintf(1, "Memory access violation: address %p not mapped\n", addr);
-         } 
+     } 
      else if (code == YALNIX_ACCERR) {
          // Permission violation
          TracePrintf("Memory access violation: invalid permissions for address %p\n", addr);
      }
      
      // If we get here, this is a fatal memory error - terminate process
-     // Exa
+     
