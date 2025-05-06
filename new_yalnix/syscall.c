@@ -1,24 +1,16 @@
 #include "hardware.h"
 #include "yalnix.h"
+#include "yuser.h"
+#include "ykernel.h"
+
 #include "syscall.h"
 #include "kernel.h"
 #include "process.h"
-#include "yuser.h"
-#include "ykernel.h"
 #include "sync.h"
 
+int SysFork(UserContext *uctxt){
 
-/**
- * @brief 
- * SysFork: Creates a child process that copies the parent process.
- * Allocates a new PCB for the child process, copies the parent's UserContext,
- * and performs a context switch to the child process.
- * @param uctxt: pointer to the parent process's UserContext.
- * @return child: 0 on success, -1 on failure.
- * parent: PID of the child process on success.
- * Stops the system if context switch fails.
- */
-int SysFork(UserContext *uctxt);
+}
 
 /**
  * @brief 
@@ -71,4 +63,3 @@ int SysBrk(void *addr);
  * @return 0 on success, ERROR on failure.
  */
 int SysDelay(int clock_ticks);
-#endif // syscall.h
