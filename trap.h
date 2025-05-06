@@ -13,7 +13,6 @@ void TrapMathHandler(UserContext *uctxt);
 void TrapTtyReceiveHandler(UserContext *uctxt);
 void TrapTtyTransmitHandler(UserContext *uctxt);
 void TrapDiskHandler(UserContext *uctxt);
-void InitInterruptVectorTable(void);
 
 #endif
 // trap.h

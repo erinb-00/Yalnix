@@ -113,7 +113,7 @@
          kernel_page_table[vpn].valid = 1;
          // kernel_page_table[vpn].kprot = PROT_READ | PROT_EXEC;
          // kernel_page_table[vpn].uprot = 0;  /* Not accessible to user mode */
-         kernel_page_table[vpn].pfn = vpn;  /* Identity mapping */
+         //kernel_page_table[vpn].pfn = vpn;  /* Identity mapping */
      }
      /* Map kernel data segment (read-write) */
      /*
