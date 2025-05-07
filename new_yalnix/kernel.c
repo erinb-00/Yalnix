@@ -13,6 +13,7 @@ static int current_kernel_brk_page;
 static trap_handler trap_table[TRAP_VECTOR_SIZE];
 static unsigned char *frame_bitmap;
 static pte_t *page_table_region0;
+//
 static int is_vm_enabled;
 static int switch_flag = 0;
 
@@ -116,7 +117,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     }
 
     //Initialize idle PCB
-    
+    idle_pcb = CreatePCB("idle");
+
     // Set the current kernel break page
     current_kernel_brk_page = KERNEL_HEAP_MAX_PAGE;
 
