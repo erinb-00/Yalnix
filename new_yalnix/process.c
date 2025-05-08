@@ -92,10 +92,28 @@ pcb_t *CreatePCB(char *name) {
     return pcb;
 }
 
-void FreePCB(pcb_t *pcb) {
-    if (pcb == NULL) {
-        return;
+void DestroyPCB(pcb_t *pcb) {
+    if (pcb->children != NULL) {
+        for (pcb_t *child = pcb->children->head; child != NULL; child = child->next) {
+            child->parent = NULL;
+            child->state = PCB_ORPHAN;
+        }
+        free(pcb->children);
     }
+    if(pcb->next != NULL) {
+        pcb->next->prev = pcb->prev;
+    }
+    if(pcb->prev != NULL) {
+        pcb->prev->next = pcb->next;
+    }
+    for (int i = 0; i < NUM_PAGES_REGION1; i++) {
+        if (pcb->page_table[i].valid) {
+            freeFrame(pcb->page_table[i].pfn);
+            TracePrintf(0, "Freeing page %d from process %s (PID: %d)\n", i, pcb->name, pcb->pid);
+            pcb->page_table[i].valid = 0;
+        }
+    }
+
     free(pcb->name);
     free(pcb->page_table);
     free(pcb->kernel_stack);
@@ -103,25 +121,45 @@ void FreePCB(pcb_t *pcb) {
     free(pcb);
 }
 void UpdateDelayedProcess(pcb_t *pcb, int delay) {
-    if (pcb == NULL) {
-        return;
+    TracePrintf(0, "Updating delay for process %s (PID: %d) to %d\n", pcb->name, pcb->pid, delay);
+    if (!pcb_queue_is_empty(blocked_queue)) {
+         for (pcb_t *blocked_pcb = blocked_queue->head; blocked_pcb != NULL; blocked_pcb = blocked_pcb->next) {
+            if (blocked_pcb -> delay == -1) {
+                continue;
+            }
+            blocked_pcb->delay--;
+            TracePrintf(0, "Decrementing delay for process %s (PID: %d) to %d\n", blocked_pcb->name, blocked_pcb->pid, blocked_pcb->delay);
+            if (blocked_pcb->delay == 0) {
+                blocked_pcb->state = PCB_READY;
+                pcb_queue_remove(blocked_queue, blocked_pcb);
+                pcb_enquque(ready_queue, blocked_pcb);
+            }
+        }
     }
-    pcb->delay = delay;
 }
+
 
 void PrintPageTable(pcb_t *pcb) {
-    if (pcb == NULL) {
-        return;
-    }
-    TracePrintf(0, "Page Table for Process %s (PID: %d):\n", pcb->name, pcb->pid);
     for (int i = 0; i < NUM_PAGES_REGION1; i++) {
-        TracePrintf(0, "Page %d: %p\n", i, pcb->page_table[i]);
+        TracePrintf(0, "Page %d: Frame %d, Valid %d\n", i, pcb->page_table[i].pfn, pcb->page_table[i].valid);
     }
 }
 
-void CopyPageTable(pcb_t *src, pcb_t *dest) {
-    if (src == NULL || dest == NULL) {
-        return;
+void CopyPageTable(pcb_t *parent, pcb_t *child) {
+    pte_t *parent_pt = parent->page_table;
+    pte_t *child_pt = child->page_table;
+
+    for (int i = 0; i < NUM_PAGES_REGION1; i++) {
+        if (parent_pt[i].valid) {
+            int child_pfn = getFreeFrame();
+            child_pt[i].pfn = child_pfn;
+            unsigned int parent_addr = (i + NUM_PAGES_REGION1) << PAGESHIFT;
+            MapScratch(child_pfn, parent_addr);
+            memcpy((void*)SCRATCH_ADDR, (void*)parent_addr, PAGESIZE);
+            UnmapScratch(parent_addr);
+            child_pt[i].valid = 1;
+            child_pt[i].prot = parent_pt[i].prot;
+            child_pt[i].pfn = getFreeFrame();
+        }
     }
-    memcpy(dest->page_table, src->page_table, sizeof(pte_t) * NUM_PAGES_REGION1);
-}   
+}

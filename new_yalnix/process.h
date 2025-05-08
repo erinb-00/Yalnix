@@ -11,6 +11,7 @@ typedef enum pcb_state {
     PCB_BLOCKED,
     PCB_ZOMBIE,
     PCB_INVALID,
+    PCB_ORPHAN,
 } pcb_state_t;
 
 typedef struct pcb {
@@ -24,7 +25,6 @@ typedef struct pcb {
 
     UserContext uctxt; // User context
     KernelContext kctxt; // Kernel context
-    struct PCB *next; // Pointer to the next PCB in the queue
 
     pcb_t *next; // Pointer to the next PCB in the queue
     pcb_t *prev; // Pointer to the previous PCB in the queue
@@ -85,7 +85,7 @@ void DestroyPCB(pcb_t *pcb);
 /**
  * @brief UpdateDelayedProcesses: Updates the delayed processes
  */
-void UpdateDelayedProcesses(void);
+void UpdateDelayedProcess(void);
 
 /**
  * @brief PrintPageTable: Prints the page table of the given PCB
