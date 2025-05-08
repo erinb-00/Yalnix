@@ -1,18 +1,12 @@
-
 #ifndef _trap_h
 #define _trap_h
 #include "hardware.h"
 #include "yalnix.h"
 
+typedef void (*TrapHandler)(UserContext *uctxt);
 
-void TrapKernelHandler(UserContext *uctxt);
-void TrapClockHandler(UserContext *uctxt);
-void TrapIllegalHandler(UserContext *uctxt);
-void TrapMemoryHandler(UserContext *uctxt);
-void TrapMathHandler(UserContext *uctxt);
-void TrapTtyReceiveHandler(UserContext *uctxt);
-void TrapTtyTransmitHandler(UserContext *uctxt);
-void TrapDiskHandler(UserContext *uctxt);
+extern TrapHandler interruptVector[TRAP_VECTOR_SIZE];
+
+void TrapInit(void);
 
 #endif
-// trap.h
