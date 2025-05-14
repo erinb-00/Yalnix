@@ -1,0 +1,44 @@
+** Hardware level 1 tracing enabled **
+** Yalnix level 1 tracing enabled **
+** User Prog level 1 tracing enabled **
+Hardware   Kernel heap OK.
+Hardware   Kernel heap usage: 6 blocks allocated, 1848 bytes total
+Hardware   ========= Hardware receives signal ==============
+Hardware   FrameworkSignalHandler(10), depth 1
+Hardware   ========= Hardware receives signal ==============
+Hardware   FrameworkSignalHandler(11), depth 1
+Hardware   ----
+Hardware   | Calling KernelStart
+Hardware   ----
+Hardware       | WriteRegister(REG_PTBR0,0x0288b4)
+Hardware       | WriteRegister(REG_PTLR0,0x000080)
+Hardware       | WriteRegister(REG_PTBR1,0x028ad0)
+Hardware       | WriteRegister(REG_PTLR1,0x000080)
+Hardware       | WriteRegister(REG_VM_ENABLE,0x000001)
+Hardware   Enabling VM
+Hardware   _first_kernel_text_page 16
+Hardware   _first_kernel_data_page 18
+Hardware   _orig_kernel_brk_page 24
+Hardware   initializing TLB to be empty
+Hardware   PhysLimit 30000, my_break 30000
+Hardware   clearing TLB
+Hardware   FlushTLB(TLB_FLUSH_1): PTBR1 0x28ad0, PTLR1 0x80
+Hardware   FlushTLB(TLB_FLUSH_0): PTBR0 0x288b4, PTLR0 0x80
+Hardware   moving kernel text,data,heap into TLB
+Hardware   PageInTLB[16] addr 0x20000: 0 -> 1
+Hardware   PageInTLB[17] addr 0x22000: 0 -> 1
+Hardware   PageInTLB[18] addr 0x24000: 0 -> 1
+Hardware   PageInTLB[19] addr 0x26000: 0 -> 1
+Hardware   PageInTLB[20] addr 0x28000: 0 -> 1
+Hardware   PageInTLB[21] addr 0x2a000: 0 -> 1
+Hardware   PageInTLB[22] addr 0x2c000: 0 -> 1
+Hardware   PageInTLB[23] addr 0x2e000: 0 -> 1
+Hardware   moving kernel stack into TLB
+Hardware       | WriteRegister(REG_VECTOR_BASE,0x026800)
+Hardware       | WriteRegister(REG_PTBR1,0x028ad0)
+Hardware       | WriteRegister(REG_PTLR1,0x000080)
+Hardware   Kernel heap OK.
+Hardware   Kernel heap usage: 13 blocks allocated, 3728 bytes total
+Yalnix     LoadProgram: can't open file 'init'
+Hardware   
+** Machine Halted **

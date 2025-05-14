@@ -1,50 +1,40 @@
-/* process.h - Process management data structures and functions */
+#ifndef PROCESS_H
+#define PROCESS_H
 
-#ifndef _PROCESS_H
-#define _PROCESS_H
-
+#include <stdlib.h>
+#include "yalnix.h"    // for pte_t, UserContext, PAGESHIFT, KERNEL_STACK_BASE/LIMIT
 #include "hardware.h"
-#include "yalnix.h"
+#include "ykernel.h"
 
-/* Process states */
-typedef enum {
-    PROCESS_RUNNING,
-    PROCESS_READY,
-    PROCESS_BLOCKED,
-    PROCESS_ZOMBIE,
-    PROCESS_INVALID
-} ProcessState;
+/* Number of pages in the kernel stack */
+#define KSTACK_NPAGES \
+    ((KERNEL_STACK_LIMIT >> PAGESHIFT) - (KERNEL_STACK_BASE >> PAGESHIFT))
 
-/* Process Control Block structure */
 typedef struct pcb {
-    int pid;                  /* Process ID */
-    int ppid;                 /* Parent process ID */
-    ProcessState state;       /* Current state */
-    UserContext uctxt;        /* User context (registers, etc.) */
-    pte_t *page_table;        /* Page table for this process */
-    unsigned int kernel_stack; /* Kernel stack for this process */
-    unsigned int user_brk;    /* Current user program break */
-    unsigned int user_stack_base;  /* Base of user stack */
-    unsigned int user_stack_limit; /* Current limit of user stack growth */
-    int exit_status;          /* Exit status for zombie processes */
-    struct pcb *next;         /* Next process in queue */
+    pte_t       *region1_pt;                /* Region 1 page table */
+    int          pid;                       /* From helper_new_pid() */
+    UserContext  uctxt;                     /* Saved user-mode context */
+    unsigned int kstack_pfn[KSTACK_NPAGES]; /* PFNs for the kernel stack */
+    struct pcb  *next;                      /* Ready/free list linkage */
+    void* brk;
 } PCB;
 
-/* Queue of processes */
-typedef struct {
-    PCB *head;
-    PCB *tail;
-} ProcessQueue;
+/* Allocate and initialize a new PCB with the given user page table */
+PCB* CreatePCB(pte_t* user_page_table);
 
-/* Global process management variables */
-extern PCB *current_process;     /* Currently running process */
-extern ProcessQueue ready_queue; /* Queue of ready processes */
-extern ProcessQueue blocked_queue; /* Queue of blocked processes */
-extern ProcessQueue zombie_queue;  /* Queue of zombie processes */
-extern PCB *process_table[];      /* Array of all processes indexed by PID */
-extern int next_pid;              /* Next available PID */
+/* Set the PFN for the kernel stack at the given index */
+//void set_kstack_pfn(PCB* pcb, int index, unsigned int pfn);
 
-/* Process management functions */
-void ProcessInit(void);
+/* Initialize the user-mode context (PC & SP) */
+//void set_userContext(PCB* pcb, UserContext* uctxt, void* pc, void* sp);
 
-#endif /* _PROCESS_H */
+/* Retrieve the saved user context */
+//UserContext get_userContext(PCB* pcb);
+
+/* Get the user page table for this process */
+//pte_t* get_userpt_process(PCB* pcb);
+
+//void set_userContext_sp(PCB* pcb, void* sp);
+
+#endif /* PROCESS_H */
+

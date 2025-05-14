@@ -29,20 +29,12 @@ void KernelInit(void);
 void BootstrapInit(UserContext *uctxt);
 void LoadInitProcess(UserContext *uctxt);
 void EnableVirtualMemory(void);
+int get_free_frame();
+void free_frame_number(int index);
 
-/* Number of pages in the kernel stack */
-#define KSTACK_NPAGES ((KERNEL_STACK_LIMIT >> PAGESHIFT) - (KERNEL_STACK_BASE >> PAGESHIFT))
-
-typedef struct pcb {
-    pte_t    *region1_pt;                         /* Region 1 page table for this process */
-    int       pid;                                /* Process ID from helper_new_pid() */
-    UserContext uctxt;                            /* Saved user-mode context */
-    unsigned int kstack_pfn[KSTACK_NPAGES];       /* Physical frames for the kernel stack */
-    struct PCB *next;                             /* For ready / free lists */
-} PCB;
 
 /* Globals in kernel.c */
 static PCB *idlePCB;         /* The one and only idle process */
-static PCB *currentPCB;      /* The process currently running (idle initially) */
+extern PCB *currentPCB;      /* The process currently running (idle initially) */
 
 #endif /* _KERNEL_H */
