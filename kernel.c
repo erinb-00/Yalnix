@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
 #include <fcntl.h>
@@ -44,6 +45,75 @@ void DoIdle(void) {
     TracePrintf(1, "DoIdle\n");  // Log idle trace
     Pause();                     // Halt CPU until next interrupt
   }
+}
+
+KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p) {
+  PCB *curr = (PCB *)curr_pcb_p;
+  PCB *next = (PCB *)next_pcb_p;
+
+  // 1. Save the old kernel context into the current PCB
+  curr->kctxt = *kc_in;
+
+  // 2. Remap the kernel stack pages to the next process's frames
+  //    Kernel stack lies in Region 0 from KERNEL_STACK_BASE to KERNEL_STACK_LIMIT
+  int start = KERNEL_STACK_BASE >> PAGESHIFT;
+  int end   = KERNEL_STACK_LIMIT >> PAGESHIFT;
+  for (int vpn = start; vpn < end; vpn++) {
+    kernel_page_table[vpn].valid = 1;
+    kernel_page_table[vpn].prot  = PROT_READ | PROT_WRITE;
+    // Map virtual page vpn to the PFN stored in next->kstack_pfn[vpn – start]
+    kernel_page_table[vpn].pfn   = next->kstack_pfn[vpn - start];
+  }
+
+  // 3. Flush the old stack mappings so the new ones take effect
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_KSTACK);
+
+
+
+  // 3b) Switch to the *next* process’s region-1 page table
+  WriteRegister(REG_PTBR1, (unsigned int)next->region1_pt);
+  WriteRegister(REG_PTLR1, MAX_PT_LEN);
+  // 3c) Flush the region-1 TLB so the new mappings take effect
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
+  // 4. Return the address of the next PCB's kernel context, so we'll resume there
+  return &next->kctxt;
+}
+
+KernelContext* KCCopy(KernelContext *kc_in,
+                      void *curr_pcb_p,
+                      void *next_pcb_p)
+{
+    PCB   *new_pcb    = (PCB *)next_pcb_p;
+    pte_t *kpt        = kernel_page_table;
+    const int stack_start = KERNEL_STACK_BASE  >> PAGESHIFT;
+    const int stack_end   = KERNEL_STACK_LIMIT >> PAGESHIFT;
+    const int n_pages     = stack_end - stack_start;
+    const int temp_page   = stack_start - 1;
+
+    /* 1) Copy the incoming kernel context into the new PCB */
+    new_pcb->kctxt = *kc_in;
+
+    /* 2) Copy each kernel-stack page into the new PCB's frames */
+    for (int i = 0; i < n_pages; i++) {
+        /* Map the new stack frame at the temp page */
+        kpt[temp_page].valid = 1;
+        kpt[temp_page].prot  = PROT_READ | PROT_WRITE;
+        kpt[temp_page].pfn   = new_pcb->kstack_pfn[i];
+        WriteRegister(REG_TLB_FLUSH, (temp_page << PAGESHIFT));
+
+        /* Copy from current stack page to temp page */
+        void *src = (void *)((stack_start + i) << PAGESHIFT);
+        void *dst = (void  *)(temp_page           << PAGESHIFT);
+        memcpy(dst, src, PAGESIZE);
+
+        /* Unmap the temp page again */
+        kpt[temp_page].valid = 0;
+        WriteRegister(REG_TLB_FLUSH, (temp_page << PAGESHIFT));
+    }
+
+    /* Return kc_in so KernelContextSwitch will resume here in the new process */
+    return kc_in;
 }
 
 /**
@@ -178,8 +248,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
     //set_kstack_pfn(idlePCB, i, kernel_page_table[start + i].pfn);
     idlePCB->kstack_pfn[i] = kernel_page_table[start + i].pfn;
   }
-
-  //set_userContext(idlePCB, uctxt, (void*)DoIdle, (void*)(VMEM_1_LIMIT - 1));
+ 
   idlePCB->uctxt = *uctxt;
   idlePCB->uctxt.pc = (void*)DoIdle;
   idlePCB->uctxt.sp = (void*)(VMEM_1_LIMIT - 1);
@@ -187,9 +256,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
   currentPCB = idlePCB;
 
   // Return to user context to start idle loop
-  //*uctxt = get_userContext(idlePCB);
   *uctxt = idlePCB->uctxt;
-  //WriteRegister(REG_PTBR1, (unsigned int)get_userpt_process(idlePCB));
   WriteRegister(REG_PTBR1, (unsigned int)idlePCB->region1_pt);
   WriteRegister(REG_PTLR1, MAX_PT_LEN);
 
@@ -221,17 +288,16 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
   initPCB->uctxt.sp = (void*)(VMEM_1_LIMIT - 1);
 
   // Use cmd_args[0] or default to "init"
-  char *name = (cmd_args[0] != NULL ? cmd_args[0] : "init");
+  char *name = (cmd_args[0] != NULL ? cmd_args[0] : "test/init");
   if (LoadProgram(name, cmd_args, initPCB) != SUCCESS) {
     Halt();
   }
 
-  /*
-  KernelContext *kc = KernelContextSwitch(KCCopy,(void*)&idlePCB,(void*)initPCB);
-  if (kc == NULL){ 
-    Halt();
-  }
-  */
+  
+  KernelContextSwitch(KCCopy, (void*)idlePCB, (void*)initPCB);
+  KernelContextSwitch(KCSwitch, (void*)idlePCB, (void*)initPCB);
+
+
 
   TracePrintf(1, "leaving KernelStart, returning to DoIdle\n");
   return;
@@ -561,7 +627,15 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
    * ==>> (Finally, make sure that there are no stale region1 mappings left in the TLB!)
    */
 
-   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+  // 1) Flush any old region-1 mappings
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
+  // 2) Tell the MMU to use THIS process page table
+  WriteRegister(REG_PTBR1, (unsigned int)proc->region1_pt);
+  WriteRegister(REG_PTLR1, MAX_PT_LEN);
+
+  // 3) Flush again to clear any stale entries under the new table
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
   /*
    * All pages for the new address space are now in the page table.
@@ -611,7 +685,7 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
 
   }
 
-
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
 
   /*

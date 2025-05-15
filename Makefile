@@ -19,8 +19,8 @@ K_INCS = kernel.h trap.h process.h syscalls.h
 U_SRC_DIR = ./test
 
 # What are the user c and include files?
-U_SRCS = 
-U_INCS = 
+U_SRCS = init.c
+U_INCS =
 
 
 #==========================================================
@@ -63,14 +63,14 @@ LD_EXTRA =
 KERNEL_LIBS = $(LIBDIR)/libkernel.a $(LIBDIR)/libhardware.so
 
 # the "kernel.x" argument tells the loader to use the memory layout in the kernel.x file..
-KERNEL_LDFLAGS = $(LD_EXTRA) -L$(LIBDIR) -lkernel -lelf  -Wl,-T,$(ETCDIR)/kernel.x  -Wl,-R$(LIBDIR)  -lhardware
+KERNEL_LDFLAGS = $(LD_EXTRA) -L$(LIBDIR) -lkernel -lelf  -Wl,-T,$(ETCDIR)/kernel.x  -Wl,-R$(LIBDIR)  -lhardware -g
 LINK_KERNEL = $(LINK.c)
 
 #  "user.x" respectively.
 
 # the undefines here are for annoying things older libc would sneak in
 #....with the new tiny lib, they're probably unnecessary
-USER_LDFLAGS = -u exit -u __brk -u __sbrk -u __mmap -u __default_morecore -L $(LIBDIR) -lyuser
+USER_LDFLAGS = -u exit -u __brk -u __sbrk -u __mmap -u __default_morecore -L $(LIBDIR) -lyuser -g
 USER_LINK_FLAGS =  -static -Wl,-T,$(ETCDIR)/user.x
 USER_LIBS = $(LIBDIR)/libyuser.a
 LINK_USER = $(LINK.c) $(USER_CFLAGS) $(USER_LINK_FLAGS)
