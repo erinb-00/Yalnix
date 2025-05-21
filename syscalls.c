@@ -86,4 +86,15 @@ int Delay(int clock_ticks){
       return 0;
     }
 
-  }
+}
+
+int Fork(UserContext *uctxt){
+
+
+
+}
+
+int Exec(char *filename, char *args[]) {
+  return LoadProgram(filename, args, currentPCB);
+}
+

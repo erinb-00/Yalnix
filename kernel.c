@@ -76,6 +76,8 @@ KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p
   // 3c) Flush the region-1 TLB so the new mappings take effect
   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
+  currentPCB = next;
+
   // 4. Return the address of the next PCB's kernel context, so we'll resume there
   return &next->kctxt;
 }
@@ -111,6 +113,8 @@ KernelContext* KCCopy(KernelContext *kc_in,
         kpt[temp_page].valid = 0;
         WriteRegister(REG_TLB_FLUSH, (temp_page << PAGESHIFT));
     }
+
+    currentPCB = new_pcb;
 
     /* Return kc_in so KernelContextSwitch will resume here in the new process */
     return kc_in;
@@ -295,11 +299,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
 
   
   KernelContextSwitch(KCCopy, (void*)idlePCB, (void*)initPCB);
+
+  if (currentPCB == initPCB) {
+    return;
+  }
+
   KernelContextSwitch(KCSwitch, (void*)idlePCB, (void*)initPCB);
 
-
-
-  TracePrintf(1, "leaving KernelStart, returning to DoIdle\n");
+  //TracePrintf(1, "leaving KernelStart, returning to DoIdle\n");
   return;
 }
 
@@ -635,7 +642,7 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
   WriteRegister(REG_PTLR1, MAX_PT_LEN);
 
   // 3) Flush again to clear any stale entries under the new table
-  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);   WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
   /*
    * All pages for the new address space are now in the page table.

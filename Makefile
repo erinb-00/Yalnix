@@ -9,7 +9,7 @@
 
 
 # Where's your kernel source?
-K_SRC_DIR = ~/comp-58/Yalnix
+K_SRC_DIR = .
 
 # What are the kernel c and include files?
 K_SRCS = kernel.c trap.c process.c syscalls.c
