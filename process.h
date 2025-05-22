@@ -21,7 +21,7 @@ typedef struct pcb {
 } PCB;
 
 /* Allocate and initialize a new PCB with the given user page table */
-PCB* CreatePCB(pte_t* user_page_table);
+PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt);
 
 #endif /* PROCESS_H */
 
