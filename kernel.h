@@ -32,9 +32,10 @@ void EnableVirtualMemory(void);
 int get_free_frame();
 void free_frame_number(int index);
 
+extern PCB *idlePCB;         /* The one and only idle process */
+extern PCB *initPCB;         /* The user init process */
+extern PCB *currentPCB;
 
-/* Globals in kernel.c */
-static PCB *idlePCB;         /* The one and only idle process */
-extern PCB *currentPCB;      /* The process currently running (idle initially) */
+KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p,void *next_pcb_p);
 
 #endif /* _KERNEL_H */

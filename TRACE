@@ -34,8 +34,8 @@ Hardware   PageInTLB[21] addr 0x2a000: 0 -> 1
 Hardware   PageInTLB[22] addr 0x2c000: 0 -> 1
 Hardware   PageInTLB[23] addr 0x2e000: 0 -> 1
 Hardware   moving kernel stack into TLB
-Hardware       | WriteRegister(REG_VECTOR_BASE,0x026cc0)
-Hardware       | WriteRegister(REG_PTBR1,0x028ad0)
+Hardware       | WriteRegister(REG_VECTOR_BASE,0x027140)
+Hardware       | WriteRegister(REG_PTBR1,0x0288b4)
 Hardware       | WriteRegister(REG_PTLR1,0x000080)
 Hardware   Kernel heap OK.
 Hardware   Kernel heap usage: 13 blocks allocated, 4464 bytes total
@@ -44,7 +44,7 @@ Yalnix     LoadProgram: heap_size 4, stack_size 1
 Hardware   Kernel heap OK.
 Hardware   Kernel heap usage: 14 blocks allocated, 4480 bytes total
 Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_1)
-Hardware   FlushTLB(TLB_FLUSH_1): PTBR1 0x28ad0, PTLR1 0x80
+Hardware   FlushTLB(TLB_FLUSH_1): PTBR1 0x288b4, PTLR1 0x80
 Hardware       | WriteRegister(REG_PTBR1,0x0290a4)
 Hardware       | WriteRegister(REG_PTLR1,0x000080)
 Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_1)
@@ -63,10 +63,14 @@ Hardware   ========= Hardware receives signal ==============
 Hardware   FrameworkSignalHandler(11), depth 2
 Hardware   ========= Hardware receives signal ==============
 Hardware   FrameworkSignalHandler(11), depth 2
+Hardware       | WriteRegister(REG_PTBR1,0x0288b4)
+Hardware       | WriteRegister(REG_PTLR1,0x000080)
+Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_1)
+Hardware   FlushTLB(TLB_FLUSH_1): PTBR1 0x288b4, PTLR1 0x80
 Hardware   ----
 Hardware   | On [kcs stack] invoking  MyKCS function 0x0211db
-Hardware   | From kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xed561cfb
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
+Hardware   | From kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xe9b22cfb
+Hardware   | pid 0 | PTBR1 0x0288b4 | kstack 126 127
 Hardware   ----
 Hardware       | WriteRegister(REG_TLB_FLUSH,0x06x, page 1024000)
 Hardware   FlushTLB(addr 0x000fa000, page 0x7d)
@@ -74,8 +78,8 @@ Hardware   ========= Hardware receives signal ==============
 Hardware   FrameworkSignalHandler(11), depth 2
 Hardware       ----
 Hardware       | TLB miss p:125  -> pfn:001
-Hardware       | In SP [kcs stack] 0xed578bcc | PC [region 0] 0x237e1
-Hardware       | pid 1 | PTBR1 0x0290a4 | kstack 126 127
+Hardware       | In SP [kcs stack] 0xe9b39bcc | PC [region 0] 0x23bcc
+Hardware       | pid 0 | PTBR1 0x0288b4 | kstack 126 127
 Hardware       ----
 Hardware       | WriteRegister(REG_TLB_FLUSH,0x06x, page 1024000)
 Hardware   FlushTLB(addr 0x000fa000, page 0x7d)
@@ -85,278 +89,104 @@ Hardware   ========= Hardware receives signal ==============
 Hardware   FrameworkSignalHandler(11), depth 2
 Hardware       ----
 Hardware       | TLB miss p:125  -> pfn:002
-Hardware       | In SP [kcs stack] 0xed578bcc | PC [region 0] 0x237e1
-Hardware       | pid 1 | PTBR1 0x0290a4 | kstack 126 127
+Hardware       | In SP [kcs stack] 0xe9b39bcc | PC [region 0] 0x23bcc
+Hardware       | pid 0 | PTBR1 0x0288b4 | kstack 126 127
 Hardware       ----
 Hardware       | WriteRegister(REG_TLB_FLUSH,0x06x, page 1024000)
 Hardware   FlushTLB(addr 0x000fa000, page 0x7d)
 Hardware   ----
 Hardware   | On [kcs stack] returning from MyKCS function 0x0211db
-Hardware   | Going to kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xed561cfb
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
+Hardware   | Going to kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xe9b22cfb
+Hardware   | pid 0 | PTBR1 0x0288b4 | kstack 126 127
 Hardware   ----
 Hardware   ----
-Hardware   | Back from KernelStart
+Hardware   | On [kcs stack] invoking  MyKCS function 0x0210c7
+Hardware   | From kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xe9b22cfb
+Hardware   | pid 0 | PTBR1 0x0288b4 | kstack 126 127
+Hardware   ----
+Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_KSTACK)
+Hardware       | WriteRegister(REG_PTBR1,0x0290a4)
+Hardware       | WriteRegister(REG_PTLR1,0x000080)
+Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_1)
+Hardware   FlushTLB(TLB_FLUSH_1): PTBR1 0x290a4, PTLR1 0x80
+Hardware   ----
+Hardware   | On [kcs stack] returning from MyKCS function 0x0210c7
+Hardware   | Going to kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xe9b22cfb
+Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 001 002
+Hardware   ----
+Hardware       | WriteRegister(REG_PTBR1,0x0290a4)
+Hardware       | WriteRegister(REG_PTLR1,0x000080)
 Hardware   Kernel heap OK.
 Hardware   Kernel heap usage: 13 blocks allocated, 4464 bytes total
-Hardware   | HELPER setting Proc 1 kstack to 126 127
-Hardware   | Off to usermode SP [region 1] 0x1fffff | PC [region 0] 0x21099
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
+Yalnix     leaving KernelStart, returning to DoIdle
 Hardware   ----
-Yalnix     DoIdle
+Hardware   | Back from KernelStart
+Hardware   | HELPER setting Proc 1 kstack to 1 2
+Hardware   | Off to usermode SP [region 1] 0x1fff60 | PC [region 1] 0x100120
+Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 001 002
+Hardware   ----
+Hardware   ========= Hardware receives signal ==============
+Hardware   FrameworkSignalHandler(11), depth 1
+Hardware       ----
+Hardware       | TLB miss p:128  -> pfn:003
+Hardware       | In SP [region 1] 0x1fff60 | PC [region 1] 0x100120
+Hardware       | pid 1 | PTBR1 0x0290a4 | kstack 001 002
+Hardware       ----
+Hardware   ========= Hardware receives signal ==============
+Hardware   FrameworkSignalHandler(11), depth 1
+Hardware       ----
+Hardware       | TLB miss p:129  -> pfn:004
+Hardware       | In SP [region 1] 0x1fff1c | PC [region 1] 0x103320
+Hardware       | pid 1 | PTBR1 0x0290a4 | kstack 001 002
+Hardware       ----
+Hardware   ========= Hardware receives signal ==============
+Hardware   FrameworkSignalHandler(11), depth 1
+Hardware       ----
+Hardware       | TLB miss p:131  -> pfn:006
+Hardware       | In SP [region 1] 0x1ffec0 | PC [region 1] 0x1019ab
+Hardware       | pid 1 | PTBR1 0x0290a4 | kstack 001 002
+Hardware       ----
+User Prog  init
 Hardware   ========= Hardware receives signal ==============
 Hardware   FrameworkSignalHandler(14), depth 1
 Hardware   clock tick 1
 Hardware   ----
 Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
+Hardware   | From usermode  SP [region 1] 0x1ffd90 | PC [vdso] 0xe9b9c579
+Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 001 002
+Hardware   | Calling Yalnix handler 0x2287e for trap TRAP_CLOCK
 Hardware   ----
-Yalnix     clock interrupt
 Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
+Hardware   | On [kcs stack] invoking  MyKCS function 0x0210c7
+Hardware   | From kernelmode SP [region 0] 0xff0a0 | PC [libhardware.so] 0xe9b22cfb
+Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 001 002
 Hardware   ----
-Yalnix     DoIdle
+Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_KSTACK)
+Hardware       | WriteRegister(REG_PTBR1,0x0288b4)
+Hardware       | WriteRegister(REG_PTLR1,0x000080)
+Hardware       | WriteRegister(REG_TLB_FLUSH,TLB_FLUSH_1)
+Hardware   FlushTLB(TLB_FLUSH_1): PTBR1 0x288b4, PTLR1 0x80
+Hardware   ----
+Hardware   | On [kcs stack] returning from MyKCS function 0x0210c7
+Hardware   | Going to kernelmode SP [region 0] 0xff080 | PC [libhardware.so] 0xe9b22cfb
+Hardware   | pid 0 | PTBR1 0x0288b4 | kstack 126 127
+Hardware   ----
+Yalnix     leaving KernelStart, returning to DoIdle
+Hardware   ----
+Hardware   | Back from KernelStart
+Hardware   | HELPER setting Proc 0 kstack to 126 127
+Hardware   | HELPER WARNING: Proc 0's kstack frame 126 already in use by Proc 0
+Hardware   | HELPER WARNING: Proc 0's kstack frame 127 already in use by Proc 0
+Hardware   | Off to usermode SP [region 1] 0x1ffd90 | PC [vdso] 0xe9b9c579
+Hardware   | pid 0 | PTBR1 0x0288b4 | kstack 126 127
+Hardware   ----
 Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 2
+Hardware   FrameworkSignalHandler(11), depth 1
 Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
+Hardware   | Trap Segmentation fault
+Hardware   | From usermode  SP [region 1] 0x1ffda0 | PC [region 0] 0x0
+Hardware   | pid 0 | PTBR1 0x0288b4 | kstack 126 127
+Hardware   | Calling Yalnix handler 0x2265c for trap TRAP_MEMORY
 Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 3
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 4
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 5
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 6
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 7
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 8
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 9
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 10
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 11
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 12
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 13
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 14
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 15
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
-Hardware   ========= Hardware receives signal ==============
-Hardware   FrameworkSignalHandler(14), depth 1
-Hardware   clock tick 16
-Hardware   ----
-Hardware   | Trap Alarm clock
-Hardware   | From usermode  SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   | Calling Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   ----
-Yalnix     clock interrupt
-Hardware   ----
-Hardware   | Back from Yalnix handler 0x22541 for trap TRAP_CLOCK
-Hardware   | Off to usermode SP [region 1] 0x1ffea3 | PC [vdso] 0xed5db579
-Hardware   | pid 1 | PTBR1 0x0290a4 | kstack 126 127
-Hardware   ----
-Yalnix     DoIdle
+Yalnix     memory trap at addr (nil)
+Yalnix     pid 0: illegal memory access at (nil) — aborting

@@ -36,6 +36,9 @@ static int vm_off_brk;               // Kernel break when VM disabled
 static int vm_on_brk;                // Kernel break when VM enabled
 static unsigned char *frame_free;    // Bit-vector tracking free frames
 PCB* currentPCB = NULL;
+PCB *idlePCB    = NULL;
+PCB *initPCB    = NULL;
+
 
 /**
  * Idle process: loops forever until interrupted
@@ -61,7 +64,7 @@ KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p
   for (int vpn = start; vpn < end; vpn++) {
     kernel_page_table[vpn].valid = 1;
     kernel_page_table[vpn].prot  = PROT_READ | PROT_WRITE;
-    // Map virtual page vpn to the PFN stored in next->kstack_pfn[vpn – start]
+    // Map virtual page vpn to the PFN stored in next->kstack_pfn[vpn - start]
     kernel_page_table[vpn].pfn   = next->kstack_pfn[vpn - start];
   }
 
@@ -114,7 +117,7 @@ KernelContext* KCCopy(KernelContext *kc_in,
         WriteRegister(REG_TLB_FLUSH, (temp_page << PAGESHIFT));
     }
 
-    currentPCB = new_pcb;
+   
 
     /* Return kc_in so KernelContextSwitch will resume here in the new process */
     return kc_in;
@@ -242,7 +245,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
   WriteRegister(REG_VECTOR_BASE, (unsigned int)interruptVector);
 
   // Create and initialize idle PCB
-  idlePCB = CreatePCB(user_page_table);
+idlePCB = CreatePCB(kernel_page_table);
 
   // Set up idle kernel stack frames
   int start = KERNEL_STACK_BASE >> PAGESHIFT;
@@ -264,7 +267,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
   WriteRegister(REG_PTBR1, (unsigned int)idlePCB->region1_pt);
   WriteRegister(REG_PTLR1, MAX_PT_LEN);
 
-  PCB *initPCB = malloc(sizeof(PCB));
+  initPCB = malloc(sizeof(PCB));
   if (!initPCB){ 
     Halt();
   }
@@ -297,16 +300,20 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size,
     Halt();
   }
 
-  
+
   KernelContextSwitch(KCCopy, (void*)idlePCB, (void*)initPCB);
 
-  if (currentPCB == initPCB) {
-    return;
+  if (currentPCB == idlePCB) {
+    KernelContextSwitch(KCSwitch, (void*)idlePCB, (void*)initPCB);
   }
 
-  KernelContextSwitch(KCSwitch, (void*)idlePCB, (void*)initPCB);
+  if (currentPCB == initPCB) {
+     *uctxt = initPCB->uctxt;
+     WriteRegister(REG_PTBR1, (unsigned int)initPCB->region1_pt);
+     WriteRegister(REG_PTLR1, MAX_PT_LEN);
+   }
 
-  //TracePrintf(1, "leaving KernelStart, returning to DoIdle\n");
+  TracePrintf(1, "leaving KernelStart, returning to DoIdle\n");
   return;
 }
 
@@ -370,6 +377,8 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
   long segment_size;
   char *argbuf;
 
+
+  pte_t *saved_ptbr1 = currentPCB->region1_pt;
 
   /*
    * Open the executable file
@@ -729,6 +738,12 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
   free(argbuf);
   *cpp++ = NULL;                        /* the last argv is a NULL pointer */
   *cpp++ = NULL;                        /* a NULL pointer for an empty envp */
+
+
+  // --- restore the original R1 mapping before returning ---
+  WriteRegister(REG_PTBR1, (unsigned int)saved_ptbr1);
+  WriteRegister(REG_PTLR1, MAX_PT_LEN);
+  WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
   return SUCCESS;
 
