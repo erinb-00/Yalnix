@@ -17,4 +17,12 @@ PCB* CreatePCB(pte_t* user_page_table){
 
 }
 
+pcb_t *GetCurrentProcess(void){
+  return current_process;
+}
+
+void SetCurrentProcess(pcb_t *pcb){
+  current_process = pcb;
+  pcb->state = PCB_RUNNING;
+}
 
