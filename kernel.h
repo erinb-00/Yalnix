@@ -5,6 +5,7 @@
 
 #include "hardware.h"
 #include "yalnix.h"
+#define NUM_PAGES_REGION1 (VMEM_1_SIZE / PAGESIZE)
 
 /* Forward declarations */
 typedef struct pcb PCB;

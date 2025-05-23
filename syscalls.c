@@ -128,7 +128,7 @@ void Exit(int status) {
   pcb_t *currentPCB = GetCurrentProcess();
 
   if(currentPCB->pid == 1){
-    //DestroyPCB(currentPCB);
+    DestroyPCB(currentPCB);
     Halt();
   }
   // Set the process state to ZOMBIE
