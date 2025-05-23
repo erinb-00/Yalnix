@@ -236,7 +236,6 @@ KernelContext* KCCopy(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p){
         kpt[temp_page].valid = 0;
         WriteRegister(REG_TLB_FLUSH, (temp_page << PAGESHIFT));
     }
-
     /* Return kc_in so KernelContextSwitch will resume here in the new process */
     return kc_in;
 }
@@ -274,8 +273,7 @@ KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p
     WriteRegister(REG_PTBR1, (unsigned int)next->region1_pt);
     WriteRegister(REG_PTLR1, MAX_PT_LEN);
 
-    // Flush the region-1 TLB so the new mappings take effect
-    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_ALL);
   
     currentPCB = next;
 
@@ -406,17 +404,16 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
     KernelContextSwitch(KCCopy, (void*)idlePCB, (void*)initPCB);
 
-
-
-    if (currentPCB == idlePCB) {
-      KernelContextSwitch(KCSwitch, (void*)idlePCB, (void*)initPCB);
-    }
   
     if (currentPCB == initPCB) {
        memcpy(uctxt, &initPCB->uctxt, sizeof(UserContext));
        WriteRegister(REG_PTBR1, (unsigned int)initPCB->region1_pt);
        WriteRegister(REG_PTLR1, MAX_PT_LEN);
     }
+
+
+    TracePrintf(1, "leaving KernelStart\n");
+    return;
 
 
     TracePrintf(1, "leaving KernelStart\n");
