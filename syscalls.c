@@ -1,13 +1,17 @@
 #include "kernel.h"
 #include "process.h"
+#include "syscalls.h"
+#include "hardware.h"
+#include "ykernel.h"
+#include "yalnix.h"
 
-int GetPid(void){
+int SysGetPid(void){
   pcb_t *currentPCB = GetCurrentProcess();
   return currentPCB->pid;
 
 }
 
-int Brk(void *addr){
+int SysBrk(void *addr){
 
   if (addr == NULL || currentPCB == NULL){ 
     return -1;
@@ -76,7 +80,7 @@ int Brk(void *addr){
 
 }
 
-int Delay(int clock_ticks){
+int SysDelay(int clock_ticks){
 
     if (currentPCB == NULL || clock_ticks < 0){
       return ERROR;
@@ -88,7 +92,7 @@ int Delay(int clock_ticks){
 
 }
 
-int Fork(UserContext *uctxt) {
+int SysFork(UserContext *uctxt) {
   pcb_t *current_pcb = GetCurrentProcess();
   // Create a child PCB
   pcb_t *new_pcb = CreatePCB();
@@ -120,11 +124,11 @@ int Fork(UserContext *uctxt) {
   }
 }
 
-int Exec(char *filename, char *args[]) {
+int SysExec(char *filename, char *args[]) {
   return LoadProgram(filename, args, currentPCB);
 }
 
-void Exit(int status) {
+void SysExit(int status) {
   pcb_t *currentPCB = GetCurrentProcess();
 
   if(currentPCB->pid == 1){
@@ -156,7 +160,7 @@ void Exit(int status) {
   }
 }
 
-int Wait(int *status) {
+int SysWait(int *status) {
   pcb_t *currentPCB = GetCurrentProcess();
 
   // Check if the current process has any children
