@@ -14,11 +14,13 @@
 #define CLONE_TMP1_VPN  ((KERNEL_STACK_BASE >> PAGESHIFT) - 1)
 #define CLONE_TMP2_VPN  ((KERNEL_STACK_BASE >> PAGESHIFT) - 2)
 
-int GetPid(void);
-int Brk(void *addr);
-int Delay(int clock_ticks);
-int Fork(UserContext *uctxt);
-int Exec(char *filename, char *args[]);
-int Wait(int *status_ptr);
+int user_GetPid(void);
+int user_Brk(void *addr);
+int user_Delay(int clock_ticks);
+int user_Fork(UserContext *uctxt);
+int user_Exec(char *filename, char *args[]);
+int user_Wait(int *status_ptr);
+int userWait(int *status);
+void userExit(int status);
 
 #endif // SYSCALLS_H

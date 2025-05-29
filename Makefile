@@ -12,14 +12,14 @@
 K_SRC_DIR = .
 
 # What are the kernel c and include files?
-K_SRCS = kernel.c trap.c process.c queue.c syscalls.c
-K_INCS = kernel.h trap.h process.h queue.h syscalls.h
+K_SRCS = kernel.c trap.c process.c queue.c syscalls.c tty.c
+K_INCS = kernel.h trap.h process.h queue.h syscalls.h tty.h
 
 # Where's your user source?
 U_SRC_DIR = ./test
 
 # What are the user c and include files?
-U_SRCS = init.c
+U_SRCS = init.c forktest.c
 U_INCS =
 
 

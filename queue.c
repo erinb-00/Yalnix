@@ -26,7 +26,6 @@ static struct queue_node* create_node(PCB* pcb) {
     return node;
 }
 
-
 queue_t* queue_new(void) {
 
     queue_t* queue = malloc(sizeof(queue_t));

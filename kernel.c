@@ -246,6 +246,19 @@ KernelContext* KCCopy(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p){
 KernelContext* KCSwitch(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p) {
     PCB *curr = (PCB *)curr_pcb_p;
     PCB *next = (PCB *)next_pcb_p;
+
+    if (next == NULL || curr == NULL) {
+        TracePrintf(0, "KCSwitch: Invalid PCB pointers.\n");
+        Halt();
+    }
+
+    if (next == idlePCB){
+        TracePrintf(0, "KCSwitch: Switching to idle PCB.\n");
+    } else if (next == initPCB) {
+        TracePrintf(0, "KCSwitch: Switching to init PCB.\n");
+    } else {
+        TracePrintf(0, "KCSwitch: Switching to PCB with PID %d.\n", next->pid);
+    }
   
     //======================================================================
     // CP3: copy the current KernelContext into the old PCB
@@ -357,7 +370,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     // CP2: set the pc to point to this code and the sp to point towards the top of the user stack
     //============================================================================================
     idlePCB->uctxt.pc = (void*)DoIdle;
-    idlePCB->uctxt.sp = (void*)(VMEM_1_LIMIT - 1);
+    idlePCB->uctxt.sp = (void*)(VMEM_1_LIMIT - 4);
 
     //=====================================================================
     // CP2: Return to user context to start idle loop
@@ -410,10 +423,6 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
        WriteRegister(REG_PTBR1, (unsigned int)initPCB->region1_pt);
        WriteRegister(REG_PTLR1, MAX_PT_LEN);
     }
-
-
-    TracePrintf(1, "leaving KernelStart\n");
-    return;
 
 
     TracePrintf(1, "leaving KernelStart\n");

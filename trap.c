@@ -13,29 +13,47 @@
 #include "ykernel.h"      // for SYS_FORK, SYS_EXEC, … macros
 #include <string.h>       // for memcpy
 
+//======================================================================
+// CP2: Trap handler function type
+//======================================================================
 TrapHandler interruptVector[TRAP_VECTOR_SIZE];
 
-
+//======================================================================
+// CP3: Trap handlers for clock switching
+//====================================================================== 
 void TrapClockHandler(UserContext *uctxt) {
- 
-    // Save the user registers into the old PCB
-    memcpy(&currentPCB->uctxt, uctxt, sizeof(UserContext));
-    
+
     // 2) Decide which PCB to run next
     PCB *prev = currentPCB;
     PCB *next = (prev == idlePCB ? initPCB : idlePCB);
 
+    if (prev->num_delay > 0) {
+        prev->num_delay--;
+    }
+    if (next->num_delay > 0) {
+        next->num_delay--;
+        TracePrintf(0, "TrapClockHandler: next process %d has %d ticks left\n",
+                   next->pid, next->num_delay);
+        
+        return;
+    }
+ 
+    // Save the user registers into the old PCB
+    memcpy(&currentPCB->uctxt, uctxt, sizeof(UserContext));
+
+
     // 3) Do the kernel-mode context switch: save prev’s KernelContext,
     //    remap stack pages & switch to next’s region1 PT, flush TLBs
-    KernelContextSwitch(KCSwitch,
-                       prev,
-                       next);
+    KernelContextSwitch(KCSwitch, prev, next);
 
     // 4) Update currentPCB (inside KCSwitch) and copy the new UserContext back
     memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
 
 }
 
+//======================================================================
+// CP3: Trap handler for kernel system calls
+//======================================================================
 void TrapKernelHandler(UserContext *uctxt) {
     // Save the user registers
     memcpy(&currentPCB->uctxt, uctxt, sizeof(UserContext));
@@ -45,20 +63,22 @@ void TrapKernelHandler(UserContext *uctxt) {
 
     switch (syscall) {
         case YALNIX_FORK:
-            // Fork fills in uctxt for parent and child
-            retval = Fork(uctxt);
+            TracePrintf(0, "\n=========\nYALNIX_FORK(1)\n=========\n");
+            retval = user_Fork(uctxt);
+            TracePrintf(0, "\n=========\nYALNIX_FORK(2)\n=========\n");
             break;
 
         case YALNIX_EXEC: {
+            TracePrintf(0, "\n=========\nYALNIX_EXEC(1)\n=========\n");
             // args in regs[0]=filename, regs[1]=argv
             char *filename = (char *)currentPCB->uctxt.regs[0];
             char **args    = (char **)currentPCB->uctxt.regs[1];
-            retval = Exec(filename, args);
+            retval = user_Exec(filename, args);
             if (retval != ERROR) {
                 // On success, new program context is in currentPCB->uctxt
                 memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
-                return;
             }
+            TracePrintf(0, "\n=========\nYALNIX_EXEC(2)\n=========\n");
             break;
         }
       
@@ -68,18 +88,24 @@ void TrapKernelHandler(UserContext *uctxt) {
         }
 
         case YALNIX_GETPID:
-            retval = GetPid();
+            TracePrintf(0, "\n=========\nYALNIX_GETPID(1)\n=========\n");
+            retval = user_GetPid();
+            TracePrintf(0, "\n=========\nYALNIX_GETPID(2)\n=========\n");
             break;
 
         case YALNIX_BRK: {
+            TracePrintf(0, "\n=========\nYALNIX_BRK(1)\n=========\n");
             void *addr = (void *)currentPCB->uctxt.regs[0];
-            retval = Brk(addr);
+            retval = user_Brk(addr);
+            TracePrintf(0, "\n=========\nYALNIX_BRK(2)\n=========\n");
             break;
         }
 
         case YALNIX_DELAY: {
+            TracePrintf(0, "\n=========\nYALNIX_DELAY(1)\n=========\n");
             int ticks = currentPCB->uctxt.regs[0];
-            retval = Delay(ticks);
+            retval = user_Delay(ticks);
+            TracePrintf(0, "\n=========\nYALNIX_DELAY(2)\n=========\n");
             break;
         }
 
@@ -90,18 +116,69 @@ void TrapKernelHandler(UserContext *uctxt) {
     // Place return value in r0
     currentPCB->uctxt.regs[0] = retval;
     // Advance PC to avoid re‑issuing the syscall
-    currentPCB->uctxt.pc = (void *)((char *)currentPCB->uctxt.pc + 4);
+    //currentPCB->uctxt.pc = (void *)((char *)currentPCB->uctxt.pc + 4);
 
     // Restore updated user registers back to the trap frame
-    memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
+    //memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
 }
 
+//======================================================================
+// CP2: Default trap handler for unhandled traps
+//======================================================================
 void TrapDefaultHandler(UserContext *uctxt) {
-    TracePrintf(1, "unhandled trap vector %d code %d addr %p\n",
+    TracePrintf(1, "In TrapDeaulf Handler: unhandled trap vector %d code %d addr %p\n",
                 uctxt->vector, uctxt->code, uctxt->addr);
     Halt();
 }
 
+void TrapMemoryHandler(UserContext *uctxt) {
+    TracePrintf(1, "memory trap at addr %p\n", uctxt->addr);
+
+    /* 1) Save incoming user registers */
+    currentPCB->uctxt = *uctxt;
+
+    /* 2) Compute fault‐page, stack‐page, and heap‐page */
+    unsigned int fault     = (unsigned int)uctxt->addr;
+    unsigned int page      = (fault - VMEM_1_BASE) >> PAGESHIFT;
+    unsigned int spage     = (((unsigned int)currentPCB->uctxt.sp
+                               - VMEM_1_BASE) >> PAGESHIFT);
+    unsigned int heap_page = (((unsigned int)currentPCB->brk
+                               - VMEM_1_BASE) >> PAGESHIFT);
+
+    /* 3) Check for implicit stack growth:
+     *    in R1, below SP, above heap
+     */
+    if (fault >= VMEM_1_BASE &&
+        page < spage &&
+        page >= heap_page) 
+    {
+        /* Grow the stack one page at a time */
+        for (int p = spage - 1; p >= (int)page; p--) {
+            int frame = get_free_frame();
+            if (frame < 0) goto abort;    // out of memory
+            currentPCB->region1_pt[p].valid = 1;
+            currentPCB->region1_pt[p].pfn   = frame;
+            currentPCB->region1_pt[p].prot  = PROT_READ | PROT_WRITE;
+        }
+        /* Flush R1 TLB so new pages take effect */
+        WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+
+        /* 4) Resume the faulting process */
+        *uctxt = currentPCB->uctxt;
+        return;
+    }
+
+abort:
+    /* 5) Illegal access → kill the process */
+    TracePrintf(0,
+        "pid %d: illegal memory access at %p — aborting\n",
+        currentPCB->pid, uctxt->addr);
+    exit(1);
+}
+
+//======================================================================
+// CP2: Initialize the trap handlers
+//======================================================================
 void TrapInit(void) {
     
     for (int i = 0; i < TRAP_VECTOR_SIZE; i++) {
@@ -111,4 +188,5 @@ void TrapInit(void) {
     
     interruptVector[TRAP_CLOCK] = TrapClockHandler;
     interruptVector[TRAP_KERNEL] = TrapKernelHandler;
+    interruptVector[TRAP_MEMORY] = TrapMemoryHandler;
 }
