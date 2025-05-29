@@ -16,6 +16,7 @@ typdef struct tty_struct {
     int using;
 } tty_struct_t;
 
-void tty_init(void);
-void tty_read(int tty_id, void *buffer, int size);
-void tty_write(int tty_id, void *buffer, int size);
+void TtyInit(void);
+void SysTtyRead(int tty_id, void *buffer, int size);
+void start_tty_write(int terminal, pcb_t *writer, void *buffer, int size);
+void SysTtyWrite(int tty_id, void *buffer, int size);

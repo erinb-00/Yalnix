@@ -8,5 +8,7 @@ typedef void (*TrapHandler)(UserContext *uctxt);
 extern TrapHandler interruptVector[TRAP_VECTOR_SIZE];
 
 void TrapInit(void);
-
+void TrapKernelHandler(UserContext *uctxt);
+void TrapClockHandler(UserContext *uctxt);
+void TrapMemoryHandler(UserContext *uctxt);
 #endif
