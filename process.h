@@ -47,5 +47,7 @@ extern queue_t *waiting_parent_processes; // Queue of processes waiting for thei
 
 /* Allocate and initialize a new PCB with the given user page table */
 PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt);
+void initQueues(void);
 
 #endif /* PROCESS_H */
+                         

@@ -20,7 +20,7 @@ int user_Delay(int clock_ticks);
 int user_Fork(UserContext *uctxt);
 int user_Exec(char *filename, char *args[]);
 int user_Wait(int *status_ptr);
-int userWait(int *status);
-void userExit(int status);
+int user_Wait(int *status);
+void user_Exit(int status);
 
 #endif // SYSCALLS_H

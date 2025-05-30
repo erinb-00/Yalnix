@@ -11,9 +11,9 @@ queue_t *zombie_processes         = NULL;
 queue_t *waiting_parent_processes = NULL;
 
 void initQueues(void) {
-  ready_processes          = queue_new();
-  blocked_processes        = queue_new();
-  zombie_processes         = queue_new();
+  ready_processes = queue_new();
+  blocked_processes = queue_new();
+  zombie_processes = queue_new();
   waiting_parent_processes = queue_new();
 
   if (ready_processes == NULL || blocked_processes == NULL ||
@@ -41,7 +41,8 @@ PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt) {
   newPCB->num_delay = 0; // Initialize delay counter to 0
   newPCB->parent = NULL; // Initialize parent pointer to NULL
   newPCB->children = queue_new(); // Initialize children queue
-  
+  newPCB->state = PCB_READY; // Set initial state to READY
+
   if (newPCB->children == NULL) {
     TracePrintf(0, "Failed to create children queue for new PCB\n");
     free(newPCB);

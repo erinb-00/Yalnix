@@ -350,6 +350,10 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     TrapInit();
     WriteRegister(REG_VECTOR_BASE, (unsigned int)interruptVector);
 
+
+    initQueues();
+
+
     //====================================================================
     // CP2: create and initialize idle PCB
     //====================================================================
@@ -414,7 +418,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
         TracePrintf(0, "KernelStart: failed to load init\n");
         Halt();
     }
-
+    queue_add(ready_processes, initPCB);
     KernelContextSwitch(KCCopy, (void*)initPCB, NULL);
 
   

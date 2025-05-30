@@ -12,38 +12,47 @@
 #include "syscalls.h"
 #include "ykernel.h"      // for SYS_FORK, SYS_EXEC, … macros
 #include <string.h>       // for memcpy
+#include <stdbool.h>
 
 //======================================================================
 // CP2: Trap handler function type
 //======================================================================
 TrapHandler interruptVector[TRAP_VECTOR_SIZE];
 
+static void delay_helper(PCB *pcb, void *ctx) {
+    TracePrintf(0, "Delay helper called for PCB %d with delay %d\n", pcb->pid, pcb->num_delay);
+    if (pcb->num_delay > 0) {
+        pcb->num_delay--;
+    }
+    if (pcb->num_delay == 0) {
+        // Move the PCB from blocked to ready
+        queue_delete_node(blocked_processes, pcb);
+        queue_add(ready_processes, pcb);
+        pcb->state = PCB_READY; // Update state to ready
+    }
+}
+
 //======================================================================
 // CP3: Trap handlers for clock switching
 //====================================================================== 
 void TrapClockHandler(UserContext *uctxt) {
 
+    queue_iterate(blocked_processes, delay_helper, NULL);
+
     // 2) Decide which PCB to run next
     PCB *prev = currentPCB;
-    PCB *next = (prev == idlePCB ? initPCB : idlePCB);
 
-    if (currentPCB == initPCB) {
-        if (!queue_is_empty(initPCB->children)) {
-            next = queue_get(initPCB->children);
-            queue_add(initPCB->children, next);
-        }
+    if (prev != idlePCB && prev->state == PCB_READY) {
+        queue_add(ready_processes, prev);
+    } 
+
+    PCB* next  = queue_get(ready_processes);
+    if (next == NULL) {
+        // If no ready processes, run the idle process
+        next = idlePCB;
+        TracePrintf(0, "TrapClockHandler: No ready processes, switching to idle process.\n");
     }
 
-    if (prev->num_delay > 0) {
-        prev->num_delay--;
-    }
-    if (next->num_delay > 0) {
-        next->num_delay--;
-        TracePrintf(0, "TrapClockHandler: next process %d has %d ticks left\n",
-                   next->pid, next->num_delay);
-        
-        return;
-    }
  
     // Save the user registers into the old PCB
     memcpy(&currentPCB->uctxt, uctxt, sizeof(UserContext));
@@ -66,6 +75,7 @@ void TrapKernelHandler(UserContext *uctxt) {
 
     int syscall = uctxt->code;
     int retval = ERROR;
+    bool exit_flag = false;
 
     switch (syscall) {
         case YALNIX_FORK:
@@ -90,7 +100,10 @@ void TrapKernelHandler(UserContext *uctxt) {
         }
       
         case YALNIX_WAIT: {
+            TracePrintf(0, "\n=========\nYALNIX_WAIT(1)\n=========\n");
             int *status = (int *)currentPCB->uctxt.regs[0];
+            retval = user_Wait(status);
+            TracePrintf(0, "\n=========\nYALNIX_WAIT(2)\n=========\n");
             break;
         }
 
@@ -116,17 +129,28 @@ void TrapKernelHandler(UserContext *uctxt) {
             break;
         }
 
+        case YALNIX_EXIT: {
+            TracePrintf(0, "\n=========\nYALNIX_EXIT(1)\n=========\n");
+            int status = currentPCB->uctxt.regs[0];
+            user_Exit(status);
+            exit_flag = true;
+            TracePrintf(0, "\n=========\nYALNIX_EXIT(2)\n=========\n");
+            break;
+        }
+
         default:
             TracePrintf(0, "TrapKernelHandler: unknown syscall 0x%x\n", syscall);
+            Halt();
     }
-
-    // Place return value in r0
-    uctxt->regs[0] = retval;
     // Advance PC to avoid re‑issuing the syscall
     //currentPCB->uctxt.pc = (void *)((char *)currentPCB->uctxt.pc + 4);
 
     // Restore updated user registers back to the trap frame
-    //memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
+    memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
+    // Place return value in r0
+    if (!exit_flag){
+        uctxt->regs[0] = retval;
+    }
 }
 
 //======================================================================

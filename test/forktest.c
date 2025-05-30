@@ -2,23 +2,28 @@
 #include "yalnix.h"
 #include "syscalls.h"
 #include "yuser.h"
-//==================================
-// CP3: write a simple init function
-//==================================
+
 void main(void) {
-    
-    int rett = Fork();
-    if (rett != 0){
-      while (1){
-        TracePrintf(1, "got in parent rett:- %d\n", rett);
-        Pause();
-      }
-    } else {
-      while(1){
-        TracePrintf(1, "got in child rett:- %d\n", rett);
-        Pause();
-      }
+    int pid, status;
 
+    pid = Fork();
+    if (pid < 0) {
+        TracePrintf(0, "init: Fork failed\n");
     }
-
+    if (pid == 0) {
+        // Child
+        TracePrintf(1, "init: in child (pid=%d)\n", GetPid());
+        Delay(5);
+        Exit(5);              // exit with status 5
+    } else {
+        // Parent (init)
+        status = Wait(&status);   // wait for child; get its exit status
+        while(1){
+        TracePrintf(1,
+            "init: child %d exited with status %d\n",
+            pid, status);
+        Pause();
+        }
+    }
 }
+

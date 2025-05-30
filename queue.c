@@ -65,11 +65,9 @@ void queue_add(queue_t* queue, PCB* pcb) {
 
 PCB* queue_get(queue_t* queue) {
     if (queue == NULL){
-        TracePrintf(0, "queue_get Error: queue is NULL\n");
         return NULL;
     }
     if (queue->head == NULL) {
-        TracePrintf(0, "queue_get Error: queue head is NULL\n");
         return NULL;
     }
     struct queue_node* node = queue->head;
@@ -127,4 +125,13 @@ void queue_delete(queue_t* queue) {
         current = next;
     }
     free(queue);
+}
+
+void queue_iterate(queue_t *queue, queue_callback_t cb, void *ctx) {
+    if (!queue || !cb) return;
+    struct queue_node *cur = queue->head;
+    while (cur) {
+        cb(cur->pcb, ctx);
+        cur = cur->next;
+    }
 }

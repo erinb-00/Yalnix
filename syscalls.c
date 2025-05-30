@@ -92,6 +92,27 @@ int user_Delay(int clock_ticks){
   }
 
   currentPCB->num_delay = clock_ticks;
+  currentPCB->state = PCB_BLOCKED;
+  queue_add(blocked_processes, currentPCB);
+  queue_delete_node(ready_processes, currentPCB);
+
+  // 2) Decide which PCB to run next
+  PCB *prev = currentPCB;
+
+  PCB* next  = queue_get(ready_processes);
+  if (next == NULL) {
+      // If no ready processes, run the idle process
+      next = idlePCB;
+  }
+
+  if (prev != idlePCB && prev->state == PCB_READY) {
+      queue_add(ready_processes, prev);
+  } 
+
+  // 3) Do the kernel-mode context switch: save prev’s KernelContext,
+  //    remap stack pages & switch to next’s region1 PT, flush TLBs
+  KernelContextSwitch(KCSwitch, prev, next);
+
   return 0;
 }
 
@@ -199,6 +220,7 @@ int user_Fork(UserContext *uctxt) {
     } 
 
     queue_add(parent->children, child);
+    queue_add(ready_processes, child);
 
     TracePrintf(0, "s_Fork: Created child process %d from parent %d\n", 
                 child->pid, parent->pid);
@@ -240,33 +262,47 @@ int user_Fork(UserContext *uctxt) {
 // CP4: still needs to be implemented
 //=========================================================================
 
-int userWait(int *status) {
+int user_Wait(int *status) {
 
   // Check if the current process has any children
-  if (currentPCB->children == NULL) {
+  if (queue_is_empty(currentPCB->children)) {
     TracePrintf(0, "No children to wait for.\n");
+    exit(1);
     return -1; // No children to wait for
   }
 
   // Check if the current process is a parent of any child processes
   if (queue_find(waiting_parent_processes, currentPCB) != -1) {
-    return -1; // Already waiting for a child process
+    TracePrintf(0, "Already waiting for a child process");
+    exit(1);
+    return -1;
   }
 
   // Add the current process to the waiting queue
   queue_add(waiting_parent_processes, currentPCB);
 
-  // Kernel context switch
-  int kc = KernelContextSwitch(KCSwitch, currentPCB, NULL);
-  if (kc == -1) {
-    TracePrintf(0, "Kernel Switch failed during wait.\n");
-    Halt();
+  currentPCB->state = PCB_BLOCKED;
+
+  PCB* prev = currentPCB;
+
+  if (prev != idlePCB && prev->state == PCB_READY) {
+    queue_add(ready_processes, prev);
+  } 
+
+  PCB* next  = queue_get(ready_processes);
+  if (next == NULL) {
+      // If no ready processes, run the idle process
+      next = idlePCB;
   }
+
+  // 3) Do the kernel-mode context switch: save prev’s KernelContext,
+  //    remap stack pages & switch to next’s region1 PT, flush TLBs
+  KernelContextSwitch(KCSwitch, prev, next);
 
   return 0;
 }
 
-void userExit(int status) {
+void user_Exit(int status) {
 
   if(currentPCB->pid == 1){
     Halt();
@@ -286,14 +322,18 @@ void userExit(int status) {
     queue_add(ready_processes, parent);
   }
 
-  // Check if the current process is the last child of its parent
-  PCB* next  = (ready_processes == NULL) ? idlePCB : queue_get(ready_processes);
-  // Kernel context switch
-  int kc = KernelContextSwitch(KCSwitch, currentPCB, next);
-  if (kc == -1) {
-    TracePrintf(0, "Kernel Switch failed during exit.\n");
-    Halt();
+  // 2) Decide which PCB to run next
+  PCB *prev = currentPCB;
+
+  PCB* next  = queue_get(ready_processes);
+  if (next == NULL) {
+      // If no ready processes, run the idle process
+      next = idlePCB;
   }
+
+  // 3) Do the kernel-mode context switch: save prev’s KernelContext,
+  //    remap stack pages & switch to next’s region1 PT, flush TLBs
+  KernelContextSwitch(KCSwitch, prev, next);
 }
 
 
