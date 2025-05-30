@@ -188,16 +188,30 @@ int user_Fork(UserContext *uctxt) {
     child->brk = parent->brk;  // Important: copy the break pointer
     memcpy(&child->uctxt, &parent->uctxt, sizeof(UserContext));
 
+    int start = KERNEL_STACK_BASE >> PAGESHIFT;
+    int end = KERNEL_STACK_LIMIT >> PAGESHIFT;
+    int KERNEL_STACK_BASE_TO_LIMIT = end - start;
+
+    for (int i = 0; i < KERNEL_STACK_BASE_TO_LIMIT; i++) {
+      int frame = get_free_frame();
+      if (frame < 0) Halt();
+        child->kstack_pfn[i] = frame;
+    } 
+
+    queue_add(parent->children, child);
+
     TracePrintf(0, "s_Fork: Created child process %d from parent %d\n", 
                 child->pid, parent->pid);
 
     // Perform kernel context switch to clone the kernel stack
-    //KernelContextSwitch(KCCopy, (void*)parent, (void*)child);
+    KernelContextSwitch(KCCopy, (void*)child, NULL);
+
     
     // After KCCopy returns, we're in either parent or child context
-    if (currentPCB->pid == child->pid) {
+    if (currentPCB == child) {
         // We're in the child process
         TracePrintf(0, "s_Fork: In child process %d\n", currentPCB->pid);
+        //exit(0);
         
         // Set up child's address space
         WriteRegister(REG_PTBR1, (unsigned int)child->region1_pt);

@@ -6,15 +6,16 @@
 // CP3: write a simple init function
 //==================================
 void main(void) {
-
-    if (Fork() != 0){
+    
+    int rett = Fork();
+    if (rett != 0){
       while (1){
-        TracePrintf(1, "got in parent\n");
+        TracePrintf(1, "got in parent rett:- %d\n", rett);
         Pause();
       }
     } else {
       while(1){
-        TracePrintf(1, "got in child\n");
+        TracePrintf(1, "got in child rett:- %d\n", rett);
         Pause();
       }
 

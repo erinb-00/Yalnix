@@ -40,11 +40,18 @@ PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt) {
   newPCB->exit_status = 0; // Initialize exit status
   newPCB->num_delay = 0; // Initialize delay counter to 0
   newPCB->parent = NULL; // Initialize parent pointer to NULL
+  newPCB->children = queue_new(); // Initialize children queue
+  
+  if (newPCB->children == NULL) {
+    TracePrintf(0, "Failed to create children queue for new PCB\n");
+    free(newPCB);
+    Halt();
+  }
 
   //=========================================================================
   // CP2: Keeps track of its User Context
   //=========================================================================
-  newPCB->uctxt = *uctxt;
+  memcpy(&newPCB->uctxt, uctxt, sizeof(UserContext));
 
   return newPCB;
 

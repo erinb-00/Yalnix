@@ -27,6 +27,13 @@ void TrapClockHandler(UserContext *uctxt) {
     PCB *prev = currentPCB;
     PCB *next = (prev == idlePCB ? initPCB : idlePCB);
 
+    if (currentPCB == initPCB) {
+        if (!queue_is_empty(initPCB->children)) {
+            next = queue_get(initPCB->children);
+            queue_add(initPCB->children, next);
+        }
+    }
+
     if (prev->num_delay > 0) {
         prev->num_delay--;
     }
@@ -40,7 +47,6 @@ void TrapClockHandler(UserContext *uctxt) {
  
     // Save the user registers into the old PCB
     memcpy(&currentPCB->uctxt, uctxt, sizeof(UserContext));
-
 
     // 3) Do the kernel-mode context switch: save prev’s KernelContext,
     //    remap stack pages & switch to next’s region1 PT, flush TLBs
@@ -66,6 +72,7 @@ void TrapKernelHandler(UserContext *uctxt) {
             TracePrintf(0, "\n=========\nYALNIX_FORK(1)\n=========\n");
             retval = user_Fork(uctxt);
             TracePrintf(0, "\n=========\nYALNIX_FORK(2)\n=========\n");
+            TracePrintf(0, "YALNIX_FORK: retval = %d\n", retval);
             break;
 
         case YALNIX_EXEC: {
@@ -114,7 +121,7 @@ void TrapKernelHandler(UserContext *uctxt) {
     }
 
     // Place return value in r0
-    currentPCB->uctxt.regs[0] = retval;
+    uctxt->regs[0] = retval;
     // Advance PC to avoid re‑issuing the syscall
     //currentPCB->uctxt.pc = (void *)((char *)currentPCB->uctxt.pc + 4);
 

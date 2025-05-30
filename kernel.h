@@ -31,6 +31,7 @@ void LoadInitProcess(UserContext *uctxt);
 void EnableVirtualMemory(void);
 int get_free_frame();
 void free_frame_number(int index);
+void DoIdle(void);
 
 extern PCB *idlePCB;         /* The one and only idle process */
 extern PCB *initPCB;         /* The user init process */

@@ -200,7 +200,7 @@ static void SetupPageTable(void) {
 // CP3: write KCCopy()
 //      init, cloning into idle
 //=======================================================================
-KernelContext* KCCopy(KernelContext *kc_in, void *curr_pcb_p, void *next_pcb_p){
+KernelContext* KCCopy(KernelContext *kc_in, void *next_pcb_p, void *useless){
 
     PCB   *new_pcb = (PCB *)next_pcb_p;
     pte_t *kpt = kernel_page_table;
@@ -415,7 +415,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
         Halt();
     }
 
-    KernelContextSwitch(KCCopy, (void*)idlePCB, (void*)initPCB);
+    KernelContextSwitch(KCCopy, (void*)initPCB, NULL);
 
   
     if (currentPCB == initPCB) {
