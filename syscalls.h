@@ -9,6 +9,9 @@
 #include "process.h"
 #include <string.h>       // for memcpy
 #include "queue.h"      // for queue_t to track child PCBs
+#include "sync_lock.h"
+#include "sync_cvar.h"
+#include "ipc.h"
 
 // Temporary virtual pages for CloneUserPageTable
 #define CLONE_TMP1_VPN  ((KERNEL_STACK_BASE >> PAGESHIFT) - 1)

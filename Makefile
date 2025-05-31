@@ -12,8 +12,8 @@
 K_SRC_DIR = .
 
 # What are the kernel c and include files?
-K_SRCS = kernel.c trap.c process.c queue.c syscalls.c tty.c ipc.c
-K_INCS = kernel.h trap.h process.h queue.h syscalls.h tty.h ipc.h
+K_SRCS = kernel.c trap.c process.c queue.c syscalls.c tty.c ipc.c sync_cvar.c sync_lock.c
+K_INCS = kernel.h trap.h process.h queue.h syscalls.h tty.h ipc.h sync_cvar.h sync_lock.h
 
 # Where's your user source?
 U_SRC_DIR = ./test

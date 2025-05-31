@@ -52,6 +52,8 @@ extern queue_t *blocked_processes;        // Queue of blocked processes
 extern queue_t *zombie_processes;        // Queue of zombie processes
 extern queue_t *waiting_parent_processes; // Queue of processes waiting for their children
 extern queue_t *pipes_queue;              // Queue of pipes
+extern queue_t *locks_queue;              // Queue of locks
+extern queue_t *cvar_queue;               // Queue of condition variables
 
 //==========================================================================
 // CP2:- Allocate and initialize a new PCB with the given user page table

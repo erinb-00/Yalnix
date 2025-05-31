@@ -23,8 +23,18 @@ typedef struct write_node {
     PCB* pcb;
 } write_node_t;
 
+static const int CVAR_MAX  = (INT_MAX / 3) * 2;
+static const int PIPE_MAX  = INT_MAX;
+static int next_pipe_id = CVAR_MAX + 1;
+
+
 
 int PipeInit(int* pipe_idp){
+
+    if (next_pipe_id > PIPE_MAX) {
+        TracePrintf(0, "PipeInit: Maximum number of pipes reached\n");
+        return -1;
+    }
 
     if (pipe_idp == NULL){
         TracePrintf(0, "PipeInit: pipe_idp is NULL\n");
@@ -52,14 +62,14 @@ int PipeInit(int* pipe_idp){
         return -1;
     }
 
-    pipe->pipe_id = queue_size(pipes_queue); // FIXME: is this correct? cuz should i instead have a global variable for unique ids?
+    pipe->pipe_id = next_pipe_id; // FIXME: is this correct? cuz should i instead have a global variable for unique ids?
     *pipe_idp = pipe->pipe_id;
     pipe->read_buffer_position = 0;
     pipe->write_buffer_position = 0;
     pipe->pipe_data_size = 0;
     memset(pipe->pipe_data, 0, sizeof(pipe->pipe_data)); // FIXME: is this correct?
     queue_add(pipes_queue, pipe);
-
+    next_pipe_id++;
     
     return 0;
 }
@@ -259,4 +269,20 @@ int PipeWrite(int pipe_id, void* buf, int len){
 
     return num_bytes;
       
+}
+
+int Reclaim_pipe(int pipe_id){
+    if (pipe_id < 1){
+        TracePrintf(0, "PipeInit: Invalid pipe id\n");
+        return -1;
+    }
+
+    pipe_t* found_pipe = NULL;
+    queue_iterate(pipes_queue, find_pipe_cb, &pipe_id, &found_pipe);
+    if (found_pipe == NULL){
+        TracePrintf(0, "PipeInit: Pipe not found\n");
+        return -1;
+    }
+
+    return 0;
 }

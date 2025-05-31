@@ -6,6 +6,9 @@
 #include "process.h"
 #include <string.h>       // for memcpy
 #include "queue.h"      // for queue_t to track child PCBs
+#include "sync_lock.h"
+#include "sync_cvar.h"
+#include "ipc.h"
 
 //=========================================================================
 // CP3: implemeneted GetPid() 
@@ -333,6 +336,20 @@ void user_Exit(int status) {
   // 3) Do the kernel-mode context switch: save prev’s KernelContext,
   //    remap stack pages & switch to next’s region1 PT, flush TLBs
   KernelContextSwitch(KCSwitch, prev, next);
+}
+
+int Reclaim(int pid){
+  if (pid < 1){
+      TracePrintf(0, "LockInit: Invalid pid\n");
+      return -1;
+  }
+  if(!Reclaim_lock(pid)){
+    if(!Reclaim_cvar(pid)){
+      if(!Reclaim_pipe(pid)){
+        return -1;
+      }
+    }
+  }    
 }
 
 

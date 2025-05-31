@@ -20,5 +20,6 @@ typedef struct write_node write_node_t;
 int PipeInit(int* pipe_idp);
 int PipeRead(int pipe_id, void* buf, int len);
 int PipeWrite(int pipe_id, void* buf, int len);
+int Reclaim_pipe(int pipe_id);
 
 #endif // PIPE_H
