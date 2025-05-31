@@ -11,6 +11,7 @@
 #include "trap.h"
 #include "ykernel.h"
 #include "process.h"
+#include "tty.h"
 
 //======================================================================
 // CP2: Physical memory management variables
@@ -353,6 +354,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
     initQueues();
 
+    TtyInit();
+
 
     //====================================================================
     // CP2: create and initialize idle PCB
@@ -679,6 +682,8 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
       proc->region1_pt[i].prot = PROT_READ | PROT_WRITE;
   
     }
+
+    proc->brk = (void*)((heap_top << PAGESHIFT) + VMEM_1_BASE); //FIXME: Is this correct?
   
   
     /*

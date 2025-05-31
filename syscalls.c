@@ -7,10 +7,6 @@
 #include <string.h>       // for memcpy
 #include "queue.h"      // for queue_t to track child PCBs
 
-
-//#define CLONE_TMP2_VPN  ((KERNEL_STACK_BASE >> PAGESHIFT) - 2)
-
-
 //=========================================================================
 // CP3: implemeneted GetPid() 
 //=========================================================================
@@ -29,13 +25,6 @@ int user_Brk(void *addr){
     return -1;
   }
 
-  if (currentPCB == idlePCB){
-    TracePrintf(0, "s_Brk: idle process.\n");
-  } 
-  
-  if (currentPCB == initPCB){
-    TracePrintf(0, "s_Brk: init process.\n");
-  }
   
   unsigned int converted_addr = (unsigned int) addr;
 
@@ -132,6 +121,10 @@ int user_Exec(char *filename, char *args[]) {
   return SUCCESS;
 }
 
+//=========================================================================
+// CP4: implemented Fork()
+//      Create a new process that is a copy of the current process
+//=========================================================================
 int user_Fork(UserContext *uctxt) {
     // Save current user context to parent PCB
     memcpy(&currentPCB->uctxt, uctxt, sizeof(UserContext));
@@ -259,9 +252,9 @@ int user_Fork(UserContext *uctxt) {
 }
 
 //=========================================================================
-// CP4: still needs to be implemented
+// CP4: implemented Wait()
+//      Wait for a child process to exit
 //=========================================================================
-
 int user_Wait(int *status) {
 
   // Check if the current process has any children
@@ -302,9 +295,14 @@ int user_Wait(int *status) {
   return 0;
 }
 
+//=========================================================================
+// CP4: implemented Exit()
+//      Exit the current process
+//=========================================================================
 void user_Exit(int status) {
 
   if(currentPCB->pid == 1){
+    TracePrintf(0, "s_Exit: init process.\n");
     Halt();
   }
   // Set the process state to ZOMBIE

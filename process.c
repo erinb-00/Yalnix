@@ -4,12 +4,17 @@
 #include "hardware.h"
 #include "kernel.h"
 
-
+//============================================
+// CP4:- Tracking queues for round-robin
+//============================================
 queue_t *ready_processes          = NULL;
 queue_t *blocked_processes        = NULL;
 queue_t *zombie_processes         = NULL;
 queue_t *waiting_parent_processes = NULL;
 
+//==============================================
+// CP4:- Initialize queues to track processes
+//==============================================
 void initQueues(void) {
   ready_processes = queue_new();
   blocked_processes = queue_new();
@@ -23,6 +28,9 @@ void initQueues(void) {
   }
 }
 
+//==========================================================================
+// CP2:- Allocate and initialize a new PCB with the given user page table
+//==========================================================================
 PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt) {
 
   PCB* newPCB = malloc(sizeof(PCB));

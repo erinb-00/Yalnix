@@ -19,7 +19,7 @@ K_INCS = kernel.h trap.h process.h queue.h syscalls.h tty.h
 U_SRC_DIR = ./test
 
 # What are the user c and include files?
-U_SRCS = init.c forktest.c
+U_SRCS = bigstack.c cvar.c forktest.c init.c lock.c torture.c zero.c
 U_INCS =
 
 

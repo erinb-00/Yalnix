@@ -138,6 +138,62 @@ void TrapKernelHandler(UserContext *uctxt) {
             break;
         }
 
+        case YALNIX_TTY_READ: {
+            TracePrintf(0, "\n=========\nYALNIX_TTY_READ(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_TTY_READ(2)\n=========\n");
+            break;
+        }
+
+        case YALNIX_TTY_WRITE: {
+            TracePrintf(0, "\n=========\nYALNIX_TTY_WRITE(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_TTY_WRITE(2)\n=========\n");
+            break;
+        }
+
+        case YALNIX_PIPE_INIT: {
+            TracePrintf(0, "\n=========\nYALNIX_PIPE_INIT(1)\n=========\n");
+        }
+
+        case YALNIX_PIPE_READ: {
+            TracePrintf(0, "\n=========\nYALNIX_PIPE_READ(1)\n=========\n");
+        }
+        
+        case YALNIX_PIPE_WRITE: {
+            TracePrintf(0, "\n=========\nYALNIX_PIPE_WRITE(1)\n=========\n");
+        }
+        
+        case YALNIX_LOCK_INIT: {
+            TracePrintf(0, "\n=========\nYALNIX_LOCK_INIT(1)\n=========\n");
+        }
+
+        case YALNIX_LOCK_ACQUIRE: {
+            TracePrintf(0, "\n=========\nYALNIX_LOCK_ACQUIRE(1)\n=========\n");
+        }
+
+        case YALNIX_LOCK_RELEASE: {
+            TracePrintf(0, "\n=========\nYALNIX_LOCK_RELEASE(1)\n=========\n");
+        }
+
+        case YALNIX_CVAR_INIT: {
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_INIT(1)\n=========\n");
+        }
+        
+        case YALNIX_CVAR_SIGNAL: {
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_SIGNAL(1)\n=========\n");
+        }
+
+        case YALNIX_CVAR_BROADCAST: {
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_BROADCAST(1)\n=========\n");
+        }
+
+        case YALNIX_CVAR_WAIT: {
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_WAIT(1)\n=========\n");
+        }
+
+        case YALNIX_RECLAIM: {
+            TracePrintf(0, "\n=========\nYALNIX_RECLAIM(1)\n=========\n");
+        }
+
         default:
             TracePrintf(0, "TrapKernelHandler: unknown syscall 0x%x\n", syscall);
             Halt();
@@ -153,71 +209,105 @@ void TrapKernelHandler(UserContext *uctxt) {
     }
 }
 
-//======================================================================
-// CP2: Default trap handler for unhandled traps
-//======================================================================
-void TrapDefaultHandler(UserContext *uctxt) {
-    TracePrintf(1, "In TrapDeaulf Handler: unhandled trap vector %d code %d addr %p\n",
-                uctxt->vector, uctxt->code, uctxt->addr);
-    Halt();
-}
-
 void TrapMemoryHandler(UserContext *uctxt) {
-    TracePrintf(1, "memory trap at addr %p\n", uctxt->addr);
 
-    /* 1) Save incoming user registers */
-    currentPCB->uctxt = *uctxt;
+    if (uctxt->code == YALNIX_ACCERR){
+        TracePrintf(0, "YALNIX_ACCERR: invalid permissions\n");
+        //Sys_Exit(1);
+        Halt();
+    }
 
-    /* 2) Compute fault‐page, stack‐page, and heap‐page */
-    unsigned int fault     = (unsigned int)uctxt->addr;
-    unsigned int page      = (fault - VMEM_1_BASE) >> PAGESHIFT;
-    unsigned int spage     = (((unsigned int)currentPCB->uctxt.sp
-                               - VMEM_1_BASE) >> PAGESHIFT);
-    unsigned int heap_page = (((unsigned int)currentPCB->brk
-                               - VMEM_1_BASE) >> PAGESHIFT);
+    if (uctxt->code == YALNIX_MAPERR){
+        TracePrintf(0, "YALNIX_MAPPER: address not mapped\n");
+    }
+    TracePrintf(0, "TrapMemoryHandler: uctxt->addr: %p\n", uctxt->addr);
+    // Save the user registers
 
-    /* 3) Check for implicit stack growth:
-     *    in R1, below SP, above heap
-     */
-    if (fault >= VMEM_1_BASE &&
-        page < spage &&
-        page >= heap_page) 
-    {
-        /* Grow the stack one page at a time */
-        for (int p = spage - 1; p >= (int)page; p--) {
+    //Compute fault‐page, stack‐page, and heap‐page
+    unsigned int fault = (unsigned int)uctxt->addr;
+    unsigned int page = (fault - VMEM_1_BASE) >> PAGESHIFT;
+    unsigned int spage = (((unsigned int)currentPCB->uctxt.sp - VMEM_1_BASE) >> PAGESHIFT);
+    unsigned int heap_page = (((unsigned int)currentPCB->brk - VMEM_1_BASE) >> PAGESHIFT);
+
+    if (fault < VMEM_1_BASE){
+        TracePrintf(0, "A");
+        Halt();
+    }
+
+    if (page > spage){
+        TracePrintf(0, "B");
+        Halt();
+    }
+
+    if (page < heap_page){
+        TracePrintf(0, "currentPCB->brk: %d\n", (unsigned int)currentPCB->brk);
+        TracePrintf(0, "page: %d, heap_page: %d, VMEM_1_BASE: %d\n", page, heap_page, VMEM_1_BASE);
+        Halt();
+    }
+
+    // Check for implicit stack growth: in R1, below SP, above heap
+    if (fault >= VMEM_1_BASE && page <= spage && (page >= heap_page)) {
+        // Grow the stack one page at a time 
+        for (int p = spage; p >= (int)page; p--) {
             int frame = get_free_frame();
-            if (frame < 0) goto abort;    // out of memory
+            if (frame < 0){
+                TracePrintf(0, "pid %d: out of memory\n", currentPCB->pid);
+                Halt();
+            }
             currentPCB->region1_pt[p].valid = 1;
             currentPCB->region1_pt[p].pfn   = frame;
             currentPCB->region1_pt[p].prot  = PROT_READ | PROT_WRITE;
-        }
-        /* Flush R1 TLB so new pages take effect */
-        WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 
-        /* 4) Resume the faulting process */
-        *uctxt = currentPCB->uctxt;
+            //FIXME: DO I need to zero out the pages?
+
+            // Flush R1 TLB so new pages take effect
+            WriteRegister(REG_TLB_FLUSH,  VMEM_1_BASE + (p << PAGESHIFT));
+        }
+
+        // Resume the faulting process 
         return;
     }
 
-abort:
-    /* 5) Illegal access → kill the process */
-    TracePrintf(0,
-        "pid %d: illegal memory access at %p — aborting\n",
-        currentPCB->pid, uctxt->addr);
-    exit(1);
+    // Illegal access → kill the process
+    TracePrintf(0,"pid %d: illegal memory access at %p — aborting\n", currentPCB->pid, uctxt->addr);
+    Halt();
+}
+
+void TrapTtyReceiveHandler(UserContext *uctxt) {
+    TracePrintf(1, "tty receive trap at addr %p\n", uctxt->addr);
+}
+
+void TrapTtyTransmitHandler(UserContext *uctxt) {
+    TracePrintf(1, "tty transmit trap at addr %p\n", uctxt->addr);
+}
+
+void TrapDiskHandler(UserContext *uctxt) {
+    TracePrintf(1, "YALNIX_DISK: %d THIS TRAP CAN BE IGNORED VIA DOCUMENTATION\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
+    user_Exit(uctxt->regs[0]);
+}
+
+void TrapMathHandler(UserContext *uctxt) {
+    TracePrintf(1, "YALNIX_MATH: %d\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
+    user_Exit(uctxt->regs[0]);
+}
+
+void TrapIllegalHandler(UserContext *uctxt) {
+    TracePrintf(1, "YALNIX_ILLEGAL: %d\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
+    user_Exit(uctxt->regs[0]);
 }
 
 //======================================================================
 // CP2: Initialize the trap handlers
 //======================================================================
 void TrapInit(void) {
-    
-    for (int i = 0; i < TRAP_VECTOR_SIZE; i++) {
-        interruptVector[i] = TrapDefaultHandler;
-    }
 
-    
     interruptVector[TRAP_CLOCK] = TrapClockHandler;
     interruptVector[TRAP_KERNEL] = TrapKernelHandler;
     interruptVector[TRAP_MEMORY] = TrapMemoryHandler;
+    interruptVector[TRAP_ILLEGAL] = TrapIllegalHandler;
+    interruptVector[TRAP_MATH] = TrapMathHandler;
+    interruptVector[TRAP_TTY_RECEIVE] = TrapTtyReceiveHandler;
+    interruptVector[TRAP_TTY_TRANSMIT] = TrapTtyTransmitHandler;
+    interruptVector[TRAP_DISK] = TrapDiskHandler;
+
 }

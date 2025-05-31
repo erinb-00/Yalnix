@@ -11,6 +11,9 @@
 #define KSTACK_NPAGES \
     ((KERNEL_STACK_LIMIT >> PAGESHIFT) - (KERNEL_STACK_BASE >> PAGESHIFT))
 
+//============================================
+// CP4:- Track Status for round-robin
+//============================================
 typedef enum pcb_state {
     PCB_READY,
     PCB_RUNNING,
@@ -19,7 +22,9 @@ typedef enum pcb_state {
     PCB_ORPHANED
 } pcb_state_t;
   
-
+//==========================================================================
+// CP2:- PCB Structure
+//==========================================================================
 typedef struct pcb {
     pte_t       *region1_pt;                /* Region 1 page table */
     int          pid;                       /* From helper_new_pid() */
@@ -30,7 +35,6 @@ typedef struct pcb {
     KernelContext kctxt;                    /* Saved kernel-mode context */
     int         exit_status;                /* Exit status for the process */
     int         num_delay;
-    /* Process hierarchy */
     struct pcb  *parent;                    /* Pointer to parent process */
     queue_t     *children;                  /* Queue of child PCBs */
     pcb_state_t state;               /* Process state */
@@ -40,13 +44,22 @@ typedef struct pcb {
     int tty_write_buffer_size;
 } PCB;
 
+//============================================
+// CP4:- Tracking queues for round-robin
+//============================================
 extern queue_t *ready_processes;          // Queue of processes ready to run
 extern queue_t *blocked_processes;        // Queue of blocked processes
 extern queue_t *zombie_processes;        // Queue of zombie processes
 extern queue_t *waiting_parent_processes; // Queue of processes waiting for their children
 
-/* Allocate and initialize a new PCB with the given user page table */
+//==========================================================================
+// CP2:- Allocate and initialize a new PCB with the given user page table
+//==========================================================================
 PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt);
+
+//==============================================
+// CP4:- Initialize queues to track processes
+//==============================================
 void initQueues(void);
 
 #endif /* PROCESS_H */

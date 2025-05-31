@@ -3,7 +3,6 @@
 #define QUEUE_H
 
 typedef struct pcb PCB;
-
 typedef struct queue_t queue_t;
 
 queue_t* queue_new(void);
