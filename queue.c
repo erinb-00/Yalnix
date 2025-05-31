@@ -6,7 +6,7 @@
 
 // Internal node structure for doubly-linked list
 struct queue_node {
-    PCB* pcb;
+    void* item;
     struct queue_node* next;
     struct queue_node* prev;
 };
@@ -18,10 +18,10 @@ struct queue_t {
 };
 
 // Creates a new node for the queue (static/internal)
-static struct queue_node* create_node(PCB* pcb) {
+static struct queue_node* create_node(void* item) {
     struct queue_node* node = malloc(sizeof(struct queue_node));
     if (!node) return NULL;
-    node->pcb = pcb;
+    node->item = item;
     node->next = node->prev = NULL;
     return node;
 }
@@ -41,14 +41,18 @@ queue_t* queue_new(void) {
     return queue;
 }
 
-void queue_add(queue_t* queue, PCB* pcb) {
+int queue_size(queue_t* queue){
+    return queue->size;
+}
 
-    if (queue == NULL || pcb == NULL) {
+void queue_add(queue_t* queue, void* item) {
+
+    if (queue == NULL || item == NULL) {
         TracePrintf(0, "queue_add failed: queue or PCB was NULL\n");
         Halt();
     }
 
-    struct queue_node* node = create_node(pcb);
+    struct queue_node* node = create_node(item);
     if (node == NULL){
         return; // Allocation failed
     }
@@ -63,7 +67,7 @@ void queue_add(queue_t* queue, PCB* pcb) {
     queue->size++;
 }
 
-PCB* queue_get(queue_t* queue) {
+void* queue_get(queue_t* queue) {
     if (queue == NULL){
         return NULL;
     }
@@ -71,7 +75,7 @@ PCB* queue_get(queue_t* queue) {
         return NULL;
     }
     struct queue_node* node = queue->head;
-    PCB* result = node->pcb;
+    void* result = node->item;
     queue->head = node->next;
     if (queue->head)
         queue->head->prev = NULL;
@@ -86,11 +90,11 @@ int queue_is_empty(queue_t* queue) {
     return (queue && queue->size == 0);
 }
 
-void queue_delete_node(queue_t* queue, PCB* pcb) {
+void queue_delete_node(queue_t* queue, void* item) {
     if (!queue) return;
     struct queue_node* current = queue->head;
     while (current) {
-        if (current->pcb == pcb) {
+        if (current->item == item) {
             struct queue_node* prev = current->prev;
             struct queue_node* next = current->next;
             if (prev) prev->next = next;
@@ -105,11 +109,11 @@ void queue_delete_node(queue_t* queue, PCB* pcb) {
     }
 }
 
-int queue_find(queue_t* queue, PCB* pcb) {
+int queue_find(queue_t* queue, void* item) {
     int idx = 0;
     struct queue_node* current = queue->head;
     while (current) {
-        if (current->pcb == pcb) return idx;
+        if (current->item == item) return idx;
         current = current->next;
         idx++;
     }
@@ -127,11 +131,11 @@ void queue_delete(queue_t* queue) {
     free(queue);
 }
 
-void queue_iterate(queue_t *queue, queue_callback_t cb, void *ctx) {
+void queue_iterate(queue_t *queue, queue_callback_t cb, void *ctx, void* ctx2) {
     if (!queue || !cb) return;
     struct queue_node *cur = queue->head;
     while (cur) {
-        cb(cur->pcb, ctx);
+        cb(cur->item, ctx, ctx2);
         cur = cur->next;
     }
 }

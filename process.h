@@ -40,8 +40,8 @@ typedef struct pcb {
     pcb_state_t state;               /* Process state */
     char* read_buffer;
     int read_buffer_size;
-    const char* tty_write_buffer;
-    int tty_write_buffer_size;
+    const char* write_buffer;
+    int write_buffer_size;
 } PCB;
 
 //============================================
@@ -51,6 +51,7 @@ extern queue_t *ready_processes;          // Queue of processes ready to run
 extern queue_t *blocked_processes;        // Queue of blocked processes
 extern queue_t *zombie_processes;        // Queue of zombie processes
 extern queue_t *waiting_parent_processes; // Queue of processes waiting for their children
+extern queue_t *pipes_queue;              // Queue of pipes
 
 //==========================================================================
 // CP2:- Allocate and initialize a new PCB with the given user page table

@@ -7,7 +7,7 @@
 #include "queue.h"
 
 
-tty_struct_t tty_struct[NUM_TERMINALS];
+tty_t tty_struct[NUM_TERMINALS];
 
 void TtyInit(void) {
     TracePrintf(1, "tty_init: Initializing TTY structures...\n");
@@ -37,7 +37,7 @@ int SysTtyRead(int tty_id, void *buffer, int size) {
         return -1;
     }
 
-    tty_struct_t *tty = &tty_struct[tty_id];
+    tty_t *tty = &tty_struct[tty_id];
     PCB* pcb = currentPCB;
     // Copy immediately
     if (tty->read_buffer_size > 0){
@@ -91,7 +91,7 @@ void start_tty_write(int terminal, PCB *writer, void *buffer, int size) {
         TracePrintf(0, "start_tty_write: Invalid parameters for TTY %d\n", terminal);
         return;
     }
-    tty_struct_t *tty = &tty_struct[terminal];
+    tty_t *tty = &tty_struct[terminal];
     tty->write_buffer = malloc(size);
     if (tty->write_buffer == NULL) {
         TracePrintf(0, "start_tty_write: Failed to allocate write buffer for TTY %d\n", terminal);
@@ -123,11 +123,11 @@ int SysTtyWrite(int tty_id, const void *buffer, int size) {
         return -1;
     }
 
-    tty_struct_t *tty = &tty_struct[tty_id];
+    tty_t *tty = &tty_struct[tty_id];
     PCB *pcb = currentPCB;
 
-    pcb->tty_write_buffer = buffer;
-    pcb->tty_write_buffer_size = size;
+    pcb->write_buffer = buffer;
+    pcb->write_buffer_size = size;
 
     if (!tty->using) {
         tty->using = 1; // Mark the TTY as being used

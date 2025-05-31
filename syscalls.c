@@ -63,6 +63,7 @@ int user_Brk(void *addr){
   } else {
     TracePrintf(0, "s_Brk: Current break for process %d is at %p.\n", currentPCB->pid, currentPCB->brk);
     Halt();
+    //FIXME: UNFINISHED
   }
 }
 

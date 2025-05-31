@@ -11,6 +11,7 @@ queue_t *ready_processes          = NULL;
 queue_t *blocked_processes        = NULL;
 queue_t *zombie_processes         = NULL;
 queue_t *waiting_parent_processes = NULL;
+queue_t *pipes_queue              = NULL;
 
 //==============================================
 // CP4:- Initialize queues to track processes
@@ -20,9 +21,9 @@ void initQueues(void) {
   blocked_processes = queue_new();
   zombie_processes = queue_new();
   waiting_parent_processes = queue_new();
+  pipes_queue = queue_new();
 
-  if (ready_processes == NULL || blocked_processes == NULL ||
-      zombie_processes == NULL || waiting_parent_processes == NULL) {
+  if (ready_processes == NULL || blocked_processes == NULL || zombie_processes == NULL || waiting_parent_processes == NULL || pipes_queue == NULL) {
     TracePrintf(0, "Failed to initialize process queues\n");
     Halt();
   }

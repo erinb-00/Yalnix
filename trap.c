@@ -13,13 +13,19 @@
 #include "ykernel.h"      // for SYS_FORK, SYS_EXEC, … macros
 #include <string.h>       // for memcpy
 #include <stdbool.h>
+#include "tty.h"
+#include "ipc.h"
 
 //======================================================================
 // CP2: Trap handler function type
 //======================================================================
 TrapHandler interruptVector[TRAP_VECTOR_SIZE];
 
-static void delay_helper(PCB *pcb, void *ctx) {
+//======================================================================
+// CP4: Delay helper function
+//======================================================================
+static void delay_helper(void* item, void *ctx, void* ctx2) {
+    PCB* pcb = (PCB*)item;
     TracePrintf(0, "Delay helper called for PCB %d with delay %d\n", pcb->pid, pcb->num_delay);
     if (pcb->num_delay > 0) {
         pcb->num_delay--;
@@ -37,7 +43,7 @@ static void delay_helper(PCB *pcb, void *ctx) {
 //====================================================================== 
 void TrapClockHandler(UserContext *uctxt) {
 
-    queue_iterate(blocked_processes, delay_helper, NULL);
+    queue_iterate(blocked_processes, delay_helper, NULL, NULL);
 
     // 2) Decide which PCB to run next
     PCB *prev = currentPCB;
@@ -88,20 +94,16 @@ void TrapKernelHandler(UserContext *uctxt) {
         case YALNIX_EXEC: {
             TracePrintf(0, "\n=========\nYALNIX_EXEC(1)\n=========\n");
             // args in regs[0]=filename, regs[1]=argv
-            char *filename = (char *)currentPCB->uctxt.regs[0];
-            char **args    = (char **)currentPCB->uctxt.regs[1];
+            char *filename = (char *)uctxt->regs[0];
+            char **args    = (char **)uctxt->regs[1];
             retval = user_Exec(filename, args);
-            if (retval != ERROR) {
-                // On success, new program context is in currentPCB->uctxt
-                memcpy(uctxt, &currentPCB->uctxt, sizeof(UserContext));
-            }
             TracePrintf(0, "\n=========\nYALNIX_EXEC(2)\n=========\n");
             break;
         }
       
         case YALNIX_WAIT: {
             TracePrintf(0, "\n=========\nYALNIX_WAIT(1)\n=========\n");
-            int *status = (int *)currentPCB->uctxt.regs[0];
+            int *status = (int *)uctxt->regs[0];
             retval = user_Wait(status);
             TracePrintf(0, "\n=========\nYALNIX_WAIT(2)\n=========\n");
             break;
@@ -115,7 +117,7 @@ void TrapKernelHandler(UserContext *uctxt) {
 
         case YALNIX_BRK: {
             TracePrintf(0, "\n=========\nYALNIX_BRK(1)\n=========\n");
-            void *addr = (void *)currentPCB->uctxt.regs[0];
+            void *addr = (void *)uctxt->regs[0];
             retval = user_Brk(addr);
             TracePrintf(0, "\n=========\nYALNIX_BRK(2)\n=========\n");
             break;
@@ -123,7 +125,7 @@ void TrapKernelHandler(UserContext *uctxt) {
 
         case YALNIX_DELAY: {
             TracePrintf(0, "\n=========\nYALNIX_DELAY(1)\n=========\n");
-            int ticks = currentPCB->uctxt.regs[0];
+            int ticks = uctxt->regs[0];
             retval = user_Delay(ticks);
             TracePrintf(0, "\n=========\nYALNIX_DELAY(2)\n=========\n");
             break;
@@ -131,7 +133,7 @@ void TrapKernelHandler(UserContext *uctxt) {
 
         case YALNIX_EXIT: {
             TracePrintf(0, "\n=========\nYALNIX_EXIT(1)\n=========\n");
-            int status = currentPCB->uctxt.regs[0];
+            int status = uctxt->regs[0];
             user_Exit(status);
             exit_flag = true;
             TracePrintf(0, "\n=========\nYALNIX_EXIT(2)\n=========\n");
@@ -152,46 +154,70 @@ void TrapKernelHandler(UserContext *uctxt) {
 
         case YALNIX_PIPE_INIT: {
             TracePrintf(0, "\n=========\nYALNIX_PIPE_INIT(1)\n=========\n");
+            int *pipe_idp = (int *)uctxt->regs[0];
+            retval = PipeInit(pipe_idp);
+            TracePrintf(0, "\n=========\nYALNIX_PIPE_INIT(2)\n=========\n");
+            break;
         }
 
         case YALNIX_PIPE_READ: {
             TracePrintf(0, "\n=========\nYALNIX_PIPE_READ(1)\n=========\n");
+            int pipe_id = uctxt->regs[0];
+            void *buf = (void *)uctxt->regs[1];
+            int len = uctxt->regs[2];
+            retval = PipeRead(pipe_id, buf, len);
+            TracePrintf(0, "\n=========\nYALNIX_PIPE_READ(2)\n=========\n");
+            break;
         }
         
         case YALNIX_PIPE_WRITE: {
             TracePrintf(0, "\n=========\nYALNIX_PIPE_WRITE(1)\n=========\n");
+            int pipe_id = uctxt->regs[0];
+            void *buf = (void *)uctxt->regs[1];
+            int len = uctxt->regs[2];
+            retval = PipeWrite(pipe_id, buf, len);
+            TracePrintf(0, "\n=========\nYALNIX_PIPE_WRITE(2)\n=========\n");
+            break;
         }
         
         case YALNIX_LOCK_INIT: {
             TracePrintf(0, "\n=========\nYALNIX_LOCK_INIT(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_LOCK_INIT(2)\n=========\n");
         }
 
         case YALNIX_LOCK_ACQUIRE: {
             TracePrintf(0, "\n=========\nYALNIX_LOCK_ACQUIRE(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_LOCK_ACQUIRE(2)\n=========\n");
         }
 
         case YALNIX_LOCK_RELEASE: {
             TracePrintf(0, "\n=========\nYALNIX_LOCK_RELEASE(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_LOCK_RELEASE(2)\n=========\n");
         }
 
         case YALNIX_CVAR_INIT: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_INIT(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_INIT(2)\n=========\n");
         }
         
         case YALNIX_CVAR_SIGNAL: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_SIGNAL(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_SIGNAL(2)\n=========\n");
         }
 
         case YALNIX_CVAR_BROADCAST: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_BROADCAST(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_BROADCAST(2)\n=========\n");
         }
 
         case YALNIX_CVAR_WAIT: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_WAIT(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_CVAR_WAIT(2)\n=========\n");
         }
 
         case YALNIX_RECLAIM: {
             TracePrintf(0, "\n=========\nYALNIX_RECLAIM(1)\n=========\n");
+            TracePrintf(0, "\n=========\nYALNIX_RECLAIM(2)\n=========\n");
         }
 
         default:
@@ -209,6 +235,9 @@ void TrapKernelHandler(UserContext *uctxt) {
     }
 }
 
+//======================================================================
+// CP4: Trap handler for memory access errors
+//======================================================================
 void TrapMemoryHandler(UserContext *uctxt) {
 
     if (uctxt->code == YALNIX_ACCERR){
@@ -229,21 +258,21 @@ void TrapMemoryHandler(UserContext *uctxt) {
     unsigned int spage = (((unsigned int)currentPCB->uctxt.sp - VMEM_1_BASE) >> PAGESHIFT);
     unsigned int heap_page = (((unsigned int)currentPCB->brk - VMEM_1_BASE) >> PAGESHIFT);
 
-    if (fault < VMEM_1_BASE){
-        TracePrintf(0, "A");
-        Halt();
-    }
+    // if (fault < VMEM_1_BASE){
+    //     TracePrintf(0, "A");
+    //     Halt();
+    // }
 
-    if (page > spage){
-        TracePrintf(0, "B");
-        Halt();
-    }
+    // if (page > spage){
+    //     TracePrintf(0, "B");
+    //     Halt();
+    // }
 
-    if (page < heap_page){
-        TracePrintf(0, "currentPCB->brk: %d\n", (unsigned int)currentPCB->brk);
-        TracePrintf(0, "page: %d, heap_page: %d, VMEM_1_BASE: %d\n", page, heap_page, VMEM_1_BASE);
-        Halt();
-    }
+    // if (page < heap_page){
+    //     TracePrintf(0, "currentPCB->brk: %d\n", (unsigned int)currentPCB->brk);
+    //     TracePrintf(0, "page: %d, heap_page: %d, VMEM_1_BASE: %d\n", page, heap_page, VMEM_1_BASE);
+    //     Halt();
+    // }
 
     // Check for implicit stack growth: in R1, below SP, above heap
     if (fault >= VMEM_1_BASE && page <= spage && (page >= heap_page)) {
@@ -273,24 +302,112 @@ void TrapMemoryHandler(UserContext *uctxt) {
     Halt();
 }
 
+//======================================================================
+// CP5: Trap handler for TTY receive
+//======================================================================
 void TrapTtyReceiveHandler(UserContext *uctxt) {
     TracePrintf(1, "tty receive trap at addr %p\n", uctxt->addr);
+
+    tty_t *tty = &tty_struct[uctxt->code];
+    tty->read_buffer_size = tty->read_buffer_size + TtyReceive(uctxt->code, tty->read_buffer + tty->read_buffer_size, TERMINAL_MAX_LINE - tty->read_buffer_size);
+
+    if (!queue_is_empty(tty->read_queue)){
+
+        PCB *next = queue_get(tty->read_queue);
+        if (next == NULL){
+            TracePrintf(0, "tty read queue was empty\n");
+            return;
+        }
+        int num_bytes = tty->read_buffer_size;
+        if (next->read_buffer_size < tty->read_buffer_size){
+            num_bytes = next->read_buffer_size;
+        }
+
+        char* read_buffer = malloc(num_bytes);
+        if (read_buffer == NULL){
+            num_bytes = 0;
+        } else {
+            memcpy(read_buffer, tty->read_buffer, num_bytes);
+            next->read_buffer = read_buffer;
+            next->read_buffer_size = num_bytes;
+        }
+
+        next->uctxt.regs[0] = num_bytes;
+
+        if(num_bytes < tty->read_buffer_size){
+            memmove(tty->read_buffer, tty->read_buffer + num_bytes, tty->read_buffer_size - num_bytes);
+            tty->read_buffer_size = tty->read_buffer_size - num_bytes;
+        } else {
+            tty->read_buffer_size = 0;
+        }
+
+        next->state = PCB_READY;
+        queue_delete_node(blocked_processes, next);
+        queue_add(ready_processes, next);
+    }
+
+    // FIXME: IS THERE ANYTHING MORE TO DO HERE?
+
 }
 
+//======================================================================
+// CP5: Trap handler for TTY transmit
+//======================================================================
 void TrapTtyTransmitHandler(UserContext *uctxt) {
     TracePrintf(1, "tty transmit trap at addr %p\n", uctxt->addr);
+
+    tty_t *tty = &tty_struct[uctxt->code];
+
+    if (tty->write_buffer_position < tty->write_buffer_size){
+        int num_bytes = tty->write_buffer_size - tty->write_buffer_position;
+        if (num_bytes > TERMINAL_MAX_LINE){
+            num_bytes = TERMINAL_MAX_LINE;
+        }
+        tty->write_buffer_position = tty->write_buffer_position + num_bytes;
+        TtyTransmit(uctxt->code, tty->write_buffer + tty->write_buffer_position, num_bytes);
+        return;
+    }
+
+    if (tty->current_writer != NULL){
+        tty->current_writer->uctxt.regs[0] = tty->current_writer->write_buffer_size;
+        tty->current_writer->state = PCB_READY;
+        queue_delete_node(blocked_processes, tty->current_writer);
+        queue_add(ready_processes, tty->current_writer);
+        tty->current_writer = NULL;
+    }
+
+    tty->using = 0;
+    if (queue_is_empty(tty->write_queue)){
+        tty->using = 1;
+        PCB* next = queue_get(tty->write_queue);
+        if (next == NULL){
+            TracePrintf(0, "tty write queue was empty\n");
+            return;
+        }
+        start_tty_write(uctxt->code, next, (void*)uctxt->regs[1], uctxt->regs[2]);
+    }
+
 }
 
+//======================================================================
+// CP6: Trap handler for disk errors
+//======================================================================
 void TrapDiskHandler(UserContext *uctxt) {
     TracePrintf(1, "YALNIX_DISK: %d THIS TRAP CAN BE IGNORED VIA DOCUMENTATION\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
     user_Exit(uctxt->regs[0]);
 }
 
+//======================================================================
+// CP6: Trap handler for math errors
+//======================================================================
 void TrapMathHandler(UserContext *uctxt) {
     TracePrintf(1, "YALNIX_MATH: %d\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
     user_Exit(uctxt->regs[0]);
 }
 
+//======================================================================
+// CP6: Trap handler for illegal instructions
+//======================================================================
 void TrapIllegalHandler(UserContext *uctxt) {
     TracePrintf(1, "YALNIX_ILLEGAL: %d\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
     user_Exit(uctxt->regs[0]);
@@ -306,8 +423,8 @@ void TrapInit(void) {
     interruptVector[TRAP_MEMORY] = TrapMemoryHandler;
     interruptVector[TRAP_ILLEGAL] = TrapIllegalHandler;
     interruptVector[TRAP_MATH] = TrapMathHandler;
+    interruptVector[TRAP_DISK] = TrapDiskHandler;
     interruptVector[TRAP_TTY_RECEIVE] = TrapTtyReceiveHandler;
     interruptVector[TRAP_TTY_TRANSMIT] = TrapTtyTransmitHandler;
-    interruptVector[TRAP_DISK] = TrapDiskHandler;
 
 }

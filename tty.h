@@ -6,7 +6,7 @@
 #include "process.h"
 #include "queue.h"
 
-typedef struct tty_struct {
+typedef struct tty {
     queue_t    *read_queue;
     queue_t    *write_queue;
     char       *read_buffer;
@@ -16,8 +16,9 @@ typedef struct tty_struct {
     PCB        *current_writer;
     int         using;
     int         write_buffer_position;
-} tty_struct_t;
+} tty_t;
 
+extern tty_t tty_struct[NUM_TERMINALS];
 int  SysTtyRead(int tty_id, void *buffer, int size);
 int  SysTtyWrite(int tty_id, const void *buffer, int size);
 void start_tty_write(int terminal, PCB *writer, void *buffer, int size);
