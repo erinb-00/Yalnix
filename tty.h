@@ -19,9 +19,8 @@ typedef struct tty {
 } tty_t;
 
 extern tty_t tty_struct[NUM_TERMINALS];
-int  SysTtyRead(int tty_id, void *buffer, int size);
-int  SysTtyWrite(int tty_id, const void *buffer, int size);
-void start_tty_write(int terminal, PCB *writer, void *buffer, int size);
 void TtyInit(void);
+int  user_TtyRead(int tty_id, void *buf, int len);
+int  user_TtyWrite(int tty_id, void *buf, int len);
 
 #endif /* _TTY_H */

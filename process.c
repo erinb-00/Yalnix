@@ -71,4 +71,17 @@ PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt) {
 
 }
 
+void DeallocatePCB(PCB* pcb) {
 
+  // check if the pcb is NULL
+  if (pcb == NULL){
+    return;
+  }
+
+  // free the children queue
+  queue_delete(pcb->children);
+
+  // free the pcb
+  free(pcb);
+
+}

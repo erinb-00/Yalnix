@@ -68,7 +68,7 @@ int get_free_frame() {
         }
         }
     }
-    return -1;
+    return ERROR;
 }
   
 //======================================================================
@@ -351,9 +351,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     TrapInit();
     WriteRegister(REG_VECTOR_BASE, (unsigned int)interruptVector);
 
-
     initQueues();
-
     TtyInit();
 
 
@@ -373,16 +371,25 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
         idlePCB->kstack_pfn[i] = kernel_page_table[start + i].pfn;
     }
 
-    //============================================================================================
-    // CP2: set the pc to point to this code and the sp to point towards the top of the user stack
-    //============================================================================================
-    idlePCB->uctxt.pc = (void*)DoIdle;
-    idlePCB->uctxt.sp = (void*)(VMEM_1_LIMIT - 4);
 
     //=====================================================================
     // CP2: Return to user context to start idle loop
     //=====================================================================
-    *uctxt = idlePCB->uctxt;
+    memcpy(&idlePCB->uctxt, uctxt, sizeof(UserContext));
+    idlePCB->uctxt.pc = NULL;
+    idlePCB->uctxt.sp = (void*)(VMEM_1_LIMIT - 1);
+
+    //============================================================================================
+    // CP2: set the pc to point to this code and the sp to point towards the top of the user stack
+    //============================================================================================
+    // right after your for-loop that fills initPCB->kstack_pfn[...]:
+    char *idle_args[] = {NULL};
+    if (LoadProgram("test/idle", idle_args, idlePCB) < 0) {
+        TracePrintf(0, "KernelStart: failed to load init\n");
+        Halt();
+    }
+
+
     WriteRegister(REG_PTBR1, (unsigned int)idlePCB->region1_pt);
     WriteRegister(REG_PTLR1, MAX_PT_LEN);
 
@@ -431,6 +438,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
        WriteRegister(REG_PTLR1, MAX_PT_LEN);
     }
 
+    if (currentPCB == idlePCB) {
+        memcpy(uctxt, &idlePCB->uctxt, sizeof(UserContext));
+        WriteRegister(REG_PTBR1, (unsigned int)idlePCB->region1_pt);
+        WriteRegister(REG_PTLR1, MAX_PT_LEN);
+    }
+
 
     TracePrintf(1, "leaving KernelStart\n");
     return;
@@ -472,7 +485,7 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
     if (LoadInfo(fd, &li) != LI_NO_ERROR) {
       TracePrintf(0, "LoadProgram: '%s' not in Yalnix format\n", name);
       close(fd);
-      return (-1);
+      return (ERROR);
     }
   
     if (li.entry < VMEM_1_BASE) {
@@ -635,7 +648,7 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
           }
       
         } 
-        return -1;
+        return ERROR;
     
       }
       
@@ -673,7 +686,7 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
           }
       
         } 
-        return -1;
+        return ERROR;
     
       }
       
@@ -711,7 +724,7 @@ int LoadProgram(char *name, char *args[], PCB* proc) {
           }
       
         } 
-        return -1;
+        return ERROR;
     
       }
       

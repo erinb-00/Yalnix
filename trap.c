@@ -15,6 +15,10 @@
 #include <stdbool.h>
 #include "tty.h"
 #include "ipc.h"
+#include "sync_lock.h"
+#include "sync_cvar.h"
+#include <stdlib.h>
+#include <yuser.h>
 
 //======================================================================
 // CP2: Trap handler function type
@@ -29,12 +33,12 @@ static void delay_helper(void* item, void *ctx, void* ctx2) {
     TracePrintf(0, "Delay helper called for PCB %d with delay %d\n", pcb->pid, pcb->num_delay);
     if (pcb->num_delay > 0) {
         pcb->num_delay--;
-    }
-    if (pcb->num_delay == 0) {
         // Move the PCB from blocked to ready
-        queue_delete_node(blocked_processes, pcb);
-        queue_add(ready_processes, pcb);
-        pcb->state = PCB_READY; // Update state to ready
+        if (pcb->num_delay == 0){
+            pcb->state = PCB_READY; // Update state to ready
+            queue_delete_node(blocked_processes, pcb);
+            queue_add(ready_processes, pcb);
+        }
     }
 }
 
@@ -142,12 +146,26 @@ void TrapKernelHandler(UserContext *uctxt) {
 
         case YALNIX_TTY_READ: {
             TracePrintf(0, "\n=========\nYALNIX_TTY_READ(1)\n=========\n");
+            int tty_id = uctxt->regs[0];
+            void *buf = (void *)uctxt->regs[1];
+            int size = uctxt->regs[2];
+            retval = user_TtyRead(tty_id, buf, size);
+            if (currentPCB->kernel_read_buffer != NULL && retval > 0){
+                memcpy(buf, currentPCB->kernel_read_buffer, retval);
+                free(currentPCB->kernel_read_buffer);
+                currentPCB->kernel_read_buffer = NULL;
+                currentPCB->kernel_read_buffer_size = 0;
+            }
             TracePrintf(0, "\n=========\nYALNIX_TTY_READ(2)\n=========\n");
             break;
         }
 
         case YALNIX_TTY_WRITE: {
             TracePrintf(0, "\n=========\nYALNIX_TTY_WRITE(1)\n=========\n");
+            int tty_id = uctxt->regs[0];
+            void *buf = (void *)uctxt->regs[1];
+            int size = uctxt->regs[2];
+            retval = user_TtyWrite(tty_id, buf, size);
             TracePrintf(0, "\n=========\nYALNIX_TTY_WRITE(2)\n=========\n");
             break;
         }
@@ -182,42 +200,67 @@ void TrapKernelHandler(UserContext *uctxt) {
         
         case YALNIX_LOCK_INIT: {
             TracePrintf(0, "\n=========\nYALNIX_LOCK_INIT(1)\n=========\n");
+            int *lock_idp = (int *)uctxt->regs[0];
+            retval = LockInit(lock_idp);
             TracePrintf(0, "\n=========\nYALNIX_LOCK_INIT(2)\n=========\n");
+            break;
         }
 
         case YALNIX_LOCK_ACQUIRE: {
             TracePrintf(0, "\n=========\nYALNIX_LOCK_ACQUIRE(1)\n=========\n");
+            int lock_id = uctxt->regs[0];
+            retval = Acquire(lock_id);
             TracePrintf(0, "\n=========\nYALNIX_LOCK_ACQUIRE(2)\n=========\n");
+            break;
         }
 
         case YALNIX_LOCK_RELEASE: {
             TracePrintf(0, "\n=========\nYALNIX_LOCK_RELEASE(1)\n=========\n");
+            int lock_id = uctxt->regs[0];
+            retval = Release(lock_id);
             TracePrintf(0, "\n=========\nYALNIX_LOCK_RELEASE(2)\n=========\n");
+            break;
         }
 
         case YALNIX_CVAR_INIT: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_INIT(1)\n=========\n");
+            int *cvar_idp = (int *)uctxt->regs[0];
+            retval = CvarInit(cvar_idp);
             TracePrintf(0, "\n=========\nYALNIX_CVAR_INIT(2)\n=========\n");
+            break;
         }
         
         case YALNIX_CVAR_SIGNAL: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_SIGNAL(1)\n=========\n");
+            int cvar_id = uctxt->regs[0];
+            retval = CvarSignal(cvar_id);
             TracePrintf(0, "\n=========\nYALNIX_CVAR_SIGNAL(2)\n=========\n");
+            break;
         }
 
         case YALNIX_CVAR_BROADCAST: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_BROADCAST(1)\n=========\n");
+            int cvar_id = uctxt->regs[0];
+            retval = CvarBroadcast(cvar_id);
             TracePrintf(0, "\n=========\nYALNIX_CVAR_BROADCAST(2)\n=========\n");
+            break;
         }
 
         case YALNIX_CVAR_WAIT: {
             TracePrintf(0, "\n=========\nYALNIX_CVAR_WAIT(1)\n=========\n");
+            int cvar_id = uctxt->regs[0];
+            int lock_id = uctxt->regs[1];
+            retval = CvarWait(cvar_id, lock_id);
             TracePrintf(0, "\n=========\nYALNIX_CVAR_WAIT(2)\n=========\n");
+            break;
         }
 
         case YALNIX_RECLAIM: {
             TracePrintf(0, "\n=========\nYALNIX_RECLAIM(1)\n=========\n");
+            int pid = uctxt->regs[0];
+            retval = Reclaim(pid);
             TracePrintf(0, "\n=========\nYALNIX_RECLAIM(2)\n=========\n");
+            break;
         }
 
         default:
@@ -242,8 +285,7 @@ void TrapMemoryHandler(UserContext *uctxt) {
 
     if (uctxt->code == YALNIX_ACCERR){
         TracePrintf(0, "YALNIX_ACCERR: invalid permissions\n");
-        //Sys_Exit(1);
-        Halt();
+        user_Exit(ERROR);
     }
 
     if (uctxt->code == YALNIX_MAPERR){
@@ -258,21 +300,6 @@ void TrapMemoryHandler(UserContext *uctxt) {
     unsigned int spage = (((unsigned int)currentPCB->uctxt.sp - VMEM_1_BASE) >> PAGESHIFT);
     unsigned int heap_page = (((unsigned int)currentPCB->brk - VMEM_1_BASE) >> PAGESHIFT);
 
-    // if (fault < VMEM_1_BASE){
-    //     TracePrintf(0, "A");
-    //     Halt();
-    // }
-
-    // if (page > spage){
-    //     TracePrintf(0, "B");
-    //     Halt();
-    // }
-
-    // if (page < heap_page){
-    //     TracePrintf(0, "currentPCB->brk: %d\n", (unsigned int)currentPCB->brk);
-    //     TracePrintf(0, "page: %d, heap_page: %d, VMEM_1_BASE: %d\n", page, heap_page, VMEM_1_BASE);
-    //     Halt();
-    // }
 
     // Check for implicit stack growth: in R1, below SP, above heap
     if (fault >= VMEM_1_BASE && page <= spage && (page >= heap_page)) {
@@ -286,8 +313,6 @@ void TrapMemoryHandler(UserContext *uctxt) {
             currentPCB->region1_pt[p].valid = 1;
             currentPCB->region1_pt[p].pfn   = frame;
             currentPCB->region1_pt[p].prot  = PROT_READ | PROT_WRITE;
-
-            //FIXME: DO I need to zero out the pages?
 
             // Flush R1 TLB so new pages take effect
             WriteRegister(REG_TLB_FLUSH,  VMEM_1_BASE + (p << PAGESHIFT));
@@ -312,6 +337,7 @@ void TrapTtyReceiveHandler(UserContext *uctxt) {
     tty->read_buffer_size = tty->read_buffer_size + TtyReceive(uctxt->code, tty->read_buffer + tty->read_buffer_size, TERMINAL_MAX_LINE - tty->read_buffer_size);
 
     if (!queue_is_empty(tty->read_queue)){
+        TracePrintf(1, "tty read queue was not empty\n");
 
         PCB *next = queue_get(tty->read_queue);
         if (next == NULL){
@@ -328,19 +354,22 @@ void TrapTtyReceiveHandler(UserContext *uctxt) {
             num_bytes = 0;
         } else {
             memcpy(read_buffer, tty->read_buffer, num_bytes);
-            next->read_buffer = read_buffer;
-            next->read_buffer_size = num_bytes;
+            next->kernel_read_buffer = read_buffer;
+            next->kernel_read_buffer_size = num_bytes;
         }
 
         next->uctxt.regs[0] = num_bytes;
 
         if(num_bytes < tty->read_buffer_size){
-            memmove(tty->read_buffer, tty->read_buffer + num_bytes, tty->read_buffer_size - num_bytes);
             tty->read_buffer_size = tty->read_buffer_size - num_bytes;
+            memmove(tty->read_buffer, tty->read_buffer + num_bytes, tty->read_buffer_size);
         } else {
             tty->read_buffer_size = 0;
         }
 
+        TracePrintf(1, "next->state = PCB_READY\n");
+        TracePrintf(1, "next->kernel_read_buffer = %s\n", next->kernel_read_buffer);
+        TracePrintf(1, "next->kernel_read_buffer_size = %d\n", next->kernel_read_buffer_size);
         next->state = PCB_READY;
         queue_delete_node(blocked_processes, next);
         queue_add(ready_processes, next);
@@ -363,11 +392,12 @@ void TrapTtyTransmitHandler(UserContext *uctxt) {
         if (num_bytes > TERMINAL_MAX_LINE){
             num_bytes = TERMINAL_MAX_LINE;
         }
-        tty->write_buffer_position = tty->write_buffer_position + num_bytes;
         TtyTransmit(uctxt->code, tty->write_buffer + tty->write_buffer_position, num_bytes);
+        tty->write_buffer_position = tty->write_buffer_position + num_bytes;
         return;
     }
-
+    free(tty->write_buffer);
+    tty->write_buffer = NULL;
     if (tty->current_writer != NULL){
         tty->current_writer->uctxt.regs[0] = tty->current_writer->write_buffer_size;
         tty->current_writer->state = PCB_READY;
@@ -377,14 +407,40 @@ void TrapTtyTransmitHandler(UserContext *uctxt) {
     }
 
     tty->using = 0;
-    if (queue_is_empty(tty->write_queue)){
+    if (!queue_is_empty(tty->write_queue)){
         tty->using = 1;
         PCB* next = queue_get(tty->write_queue);
         if (next == NULL){
             TracePrintf(0, "tty write queue was empty\n");
             return;
         }
-        start_tty_write(uctxt->code, next, (void*)uctxt->regs[1], uctxt->regs[2]);
+        
+        void* buf = (void*)uctxt->regs[1];
+        tty->write_buffer = malloc(uctxt->regs[2]);
+
+        if (tty->write_buffer == NULL) {
+            TracePrintf(0, "start_tty_write: Failed to allocate write buffer for TTY %d\n", uctxt->code);
+            next->uctxt.regs[0] = -1; // Indicate error in user context
+            next->state = PCB_READY; // Set the process state to READY
+            queue_add(ready_processes, next); // Requeue the process
+            return; // Cannot write to TTY if write buffer allocation fails
+        } else {
+
+            memcpy(tty->write_buffer, buf, uctxt->regs[2]);
+            tty->write_buffer_size = uctxt->regs[2];
+            tty->write_buffer_position = 0; // Reset write position
+            tty->current_writer = next; // Set the current writer to this process
+            tty->write_buffer_position = uctxt->regs[2];
+
+            if(uctxt->regs[2] > TERMINAL_MAX_LINE) {
+                tty->write_buffer_position = TERMINAL_MAX_LINE;
+            }
+
+            TracePrintf(1, "start_tty_write: Process %d writing %d bytes to TTY %d\n", next->pid, tty->write_buffer_position, uctxt->code);
+
+            // Set the user context to indicate the write operation
+            TtyTransmit(uctxt->code, tty->write_buffer, tty->write_buffer_position);// Transmit the data to the terminal
+        }
     }
 
 }
@@ -401,7 +457,7 @@ void TrapDiskHandler(UserContext *uctxt) {
 // CP6: Trap handler for math errors
 //======================================================================
 void TrapMathHandler(UserContext *uctxt) {
-    TracePrintf(1, "YALNIX_MATH: %d\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
+    TracePrintf(1, "YALNIX_MATH: %d\n", uctxt->regs[0]); 
     user_Exit(uctxt->regs[0]);
 }
 
@@ -409,7 +465,7 @@ void TrapMathHandler(UserContext *uctxt) {
 // CP6: Trap handler for illegal instructions
 //======================================================================
 void TrapIllegalHandler(UserContext *uctxt) {
-    TracePrintf(1, "YALNIX_ILLEGAL: %d\n", uctxt->regs[0]); //FIXME: IS THIS WHERE I get my exit code from?
+    TracePrintf(1, "YALNIX_ILLEGAL: %d\n", uctxt->regs[0]); 
     user_Exit(uctxt->regs[0]);
 }
 

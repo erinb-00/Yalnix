@@ -10,6 +10,7 @@
 #include "sync_cvar.h"
 #include "ipc.h"
 
+
 //=========================================================================
 // CP3: implemeneted GetPid() 
 //=========================================================================
@@ -25,24 +26,28 @@ int user_Brk(void *addr){
   TracePrintf(0, "s_Brk called with addr: %p\n", addr);
   if (addr == NULL || currentPCB == NULL){ 
     TracePrintf(0, "s_Brk: Invalid address or current PCB is NULL.\n");
-    return -1;
+    return ERROR;
   }
 
-  
+  // convert the address to an unsigned int
   unsigned int converted_addr = (unsigned int) addr;
 
+  // check if the converted_addr is out of bounds for region 1
   if (converted_addr > VMEM_1_LIMIT || converted_addr < VMEM_1_BASE){
     TracePrintf(0, "s_Brk: Address %p is out of bounds for region 1.\n", addr);
-    return -1;
+    return ERROR;
   }
 
+  // get the number of pages in region 1
   int region1_pages = VMEM_1_BASE >> PAGESHIFT;
   int addr_page = (converted_addr >> PAGESHIFT) - region1_pages;
   int curr_brk;
 
+  // check if the currentPCB's break is NULL
   if (currentPCB->brk == NULL){
     TracePrintf(0, "s_Brk: Initializing break for process %d.\n", currentPCB->pid);
 
+    // find the first invalid page in the currentPCB's region1_pt
     for (int i = 0; i < region1_pages; i++){
       if (currentPCB->region1_pt[i].valid == 0){
         curr_brk = i;
@@ -50,24 +55,62 @@ int user_Brk(void *addr){
       }
     }
     TracePrintf(0, "s_Brk: Current break for process %d is at page %d.\n", currentPCB->pid, curr_brk);
+
+    // allocate frames for the new pages
     for (int i = curr_brk; i < addr_page; i++){
       int index;
       if ((index = get_free_frame()) < 0){
         TracePrintf(0, "s_Brk: No free frames available for process %d.\n", currentPCB->pid);
-        return -1; // No free frames available
+        return ERROR; // No free frames available
       }
       currentPCB->region1_pt[i].valid = 1;
       currentPCB->region1_pt[i].prot = PROT_READ | PROT_WRITE;
       currentPCB->region1_pt[i].pfn = index;
     }
+
+    // set the currentPCB's break to the converted_addr
     currentPCB->brk = (void *)converted_addr;
     TracePrintf(0, "Process %d set break to %p at page %d.\n", currentPCB->pid, currentPCB->brk, addr_page);
     return 0;
-  } else {
-    TracePrintf(0, "s_Brk: Current break for process %d is at %p.\n", currentPCB->pid, currentPCB->brk);
-    Halt();
-    //FIXME: UNFINISHED
+  } 
+
+  // get the current break page
+  curr_brk = ((unsigned int)currentPCB->brk >> PAGESHIFT) - region1_pages;
+  if (curr_brk < addr_page){
+    TracePrintf(0, "s_Brk: Current break for process %d is lower than the new break at %p.\n", currentPCB->pid, currentPCB->brk);
+
+    // allocate frames for the new pages
+    for (int i = curr_brk; i < addr_page; i++){
+      int index;
+      if ((index = get_free_frame()) < 0){
+        TracePrintf(0, "s_Brk: No free frames available for process %d.\n", currentPCB->pid);
+        return ERROR; // No free frames available
+      }
+      currentPCB->region1_pt[i].valid = 1;
+      currentPCB->region1_pt[i].prot = PROT_READ | PROT_WRITE;
+      currentPCB->region1_pt[i].pfn = index;
+    }
+  } else if (curr_brk > addr_page){
+    TracePrintf(0, "s_Brk: Current break for process %d is higher than the new break at %p.\n", currentPCB->pid, currentPCB->brk);
+
+    // free the frames for the old pages
+    for (int i = curr_brk-1; i >= addr_page; i--){
+      currentPCB->region1_pt[i].valid = 0;
+      free_frame_number(currentPCB->region1_pt[i].pfn);
+      WriteRegister(REG_TLB_FLUSH, (i << PAGESHIFT) + VMEM_0_SIZE);
+    }
+  } else{
+    TracePrintf(0, "s_Brk: Current break for process %d is at the same page as the new break at %p.\n", currentPCB->pid, currentPCB->brk);
+    return ERROR;
   }
+
+  // set the currentPCB's break to the converted_addr
+  currentPCB->brk = (void *)converted_addr;
+  TracePrintf(0, "Process %d set break to %p at page %d.\n", currentPCB->pid, currentPCB->brk, addr_page);
+
+  return 0;
+
+
 }
 
 //=========================================================================
@@ -75,6 +118,8 @@ int user_Brk(void *addr){
 //      Delay the current process for a specified number of clock ticks
 //=========================================================================
 int user_Delay(int clock_ticks){
+
+  // check if the currentPCB is NULL or the clock_ticks is less than 0
   if (currentPCB == NULL || clock_ticks < 0){
     return ERROR;
   }
@@ -84,26 +129,36 @@ int user_Delay(int clock_ticks){
     return 0;
   }
 
+  // set the currentPCB's num_delay to the clock_ticks
   currentPCB->num_delay = clock_ticks;
+
+  // set the currentPCB's state to PCB_BLOCKED
   currentPCB->state = PCB_BLOCKED;
+
+  // add the currentPCB to the blocked_processes
   queue_add(blocked_processes, currentPCB);
+
+  // delete the currentPCB from the ready_processes
   queue_delete_node(ready_processes, currentPCB);
 
   // 2) Decide which PCB to run next
   PCB *prev = currentPCB;
 
+  // get the next PCB
   PCB* next  = queue_get(ready_processes);
+
+  // check if the next is NULL
   if (next == NULL) {
-      // If no ready processes, run the idle process
+      // set the next to the idlePCB
       next = idlePCB;
   }
 
+  // check if the prev is not the idlePCB and the state of the prev is PCB_READY
   if (prev != idlePCB && prev->state == PCB_READY) {
       queue_add(ready_processes, prev);
   } 
 
-  // 3) Do the kernel-mode context switch: save prev’s KernelContext,
-  //    remap stack pages & switch to next’s region1 PT, flush TLBs
+  // switch the kernel context
   KernelContextSwitch(KCSwitch, prev, next);
 
   return 0;
@@ -115,6 +170,7 @@ int user_Delay(int clock_ticks){
 //=========================================================================
 int user_Exec(char *filename, char *args[]) {
 
+  // check if the filename is NULL or the currentPCB is NULL
   if (!filename || !currentPCB){
     return ERROR;
   }
@@ -138,7 +194,7 @@ int user_Fork(UserContext *uctxt) {
     pte_t *child_pt = calloc(MAX_PT_LEN, sizeof(pte_t));
     if (child_pt == NULL) {
         TracePrintf(0, "s_Fork: Failed to allocate child page table\n");
-        return -1;
+        return ERROR;
     }
 
     // Copy each valid region-1 page from parent to child
@@ -158,7 +214,7 @@ int user_Fork(UserContext *uctxt) {
                 }
             }
             free(child_pt);
-            return -1;
+            return ERROR;
         }
 
         // Set up child's page table entry
@@ -196,7 +252,7 @@ int user_Fork(UserContext *uctxt) {
             }
         }
         free(child_pt);
-        return -1;
+        return ERROR;
     }
 
     // Set up parent-child relationship
@@ -215,6 +271,8 @@ int user_Fork(UserContext *uctxt) {
       if (frame < 0) Halt();
         child->kstack_pfn[i] = frame;
     } 
+    TracePrintf(0, "s_Fork: Created child process %d from parent %d\n", 
+                child->pid, parent->pid);
 
     queue_add(parent->children, child);
     queue_add(ready_processes, child);
@@ -264,17 +322,25 @@ int user_Wait(int *status) {
   // Check if the current process has any children
   if (queue_is_empty(currentPCB->children)) {
     TracePrintf(0, "No children to wait for.\n");
-    exit(1);
-    return -1; // No children to wait for
+    return ERROR; // No children to wait for
   }
 
-  // Check if the current process is a parent of any child processes
+  // Check if the current process is a parent waiting for any child processes
   if (queue_find(waiting_parent_processes, currentPCB) != -1) {
     TracePrintf(0, "Already waiting for a child process");
-    exit(1);
-    return -1;
+    return ERROR;
   }
 
+  for (queue_node_t* child = zombie_processes->head; child != NULL; child = child->next) {
+    PCB* child_pcb = (PCB*)child->item;
+    if (child_pcb->parent == currentPCB) {
+      *status = child_pcb->exit_status;
+      queue_delete_node(currentPCB->children, child_pcb);
+      queue_delete_node(zombie_processes, child);
+      DeallocatePCB(child_pcb);
+      return child_pcb->pid;
+    }
+  }
   // Add the current process to the waiting queue
   queue_add(waiting_parent_processes, currentPCB);
 
@@ -296,6 +362,17 @@ int user_Wait(int *status) {
   //    remap stack pages & switch to next’s region1 PT, flush TLBs
   KernelContextSwitch(KCSwitch, prev, next);
 
+  for (queue_node_t* child = zombie_processes->head; child != NULL; child = child->next) {
+    PCB* child_pcb = (PCB*)child->item;
+    if (child_pcb->parent == currentPCB) {
+      *status = child_pcb->exit_status;
+      queue_delete_node(currentPCB->children, child_pcb);
+      queue_delete_node(zombie_processes, child);
+      DeallocatePCB(child_pcb);
+      return child_pcb->pid;
+    }
+  }
+
   return 0;
 }
 
@@ -306,7 +383,7 @@ int user_Wait(int *status) {
 void user_Exit(int status) {
 
   if(currentPCB->pid == 1){
-    TracePrintf(0, "s_Exit: init process.\n");
+    TracePrintf(0, "s_Exit: init process causes halt per instructions\n");
     Halt();
   }
   // Set the process state to ZOMBIE
@@ -341,12 +418,12 @@ void user_Exit(int status) {
 int Reclaim(int pid){
   if (pid < 1){
       TracePrintf(0, "LockInit: Invalid pid\n");
-      return -1;
+      return ERROR;
   }
   if(!Reclaim_lock(pid)){
     if(!Reclaim_cvar(pid)){
       if(!Reclaim_pipe(pid)){
-        return -1;
+        return ERROR;
       }
     }
   }    

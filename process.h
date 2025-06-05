@@ -40,8 +40,10 @@ typedef struct pcb {
     pcb_state_t state;               /* Process state */
     char* read_buffer;
     int read_buffer_size;
-    const char* write_buffer;
+    char* write_buffer;
     int write_buffer_size;
+    char* kernel_read_buffer;
+    int kernel_read_buffer_size;
 } PCB;
 
 //============================================
@@ -64,6 +66,7 @@ PCB* CreatePCB(pte_t* user_page_table, UserContext* uctxt);
 // CP4:- Initialize queues to track processes
 //==============================================
 void initQueues(void);
+void DeallocatePCB(PCB* pcb);
 
 #endif /* PROCESS_H */
                          
